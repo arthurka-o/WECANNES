@@ -128,7 +128,7 @@ function WorldIdCheckIn({
         action,
         rp_context: rpContext,
         allow_legacy_proofs: true,
-      }).preset(orbLegacy({ signal: `${campaignId}-${Date.now()}` }));
+      }).preset(orbLegacy({ signal: String(campaignId) }));
 
       const completion = await request.pollUntilCompletion();
       if (!completion.success) {

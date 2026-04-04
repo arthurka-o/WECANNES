@@ -3,6 +3,18 @@ pragma solidity ^0.8.21;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
+interface IWorldID {
+    function verifyProof(
+        uint256 root,
+        uint256 groupId,
+        uint256 signalHash,
+        uint256 nullifierHash,
+        uint256 externalNullifierHash,
+        uint256[8] calldata proof
+    ) external view;
+}
 
 contract CampaignEscrow {
     using SafeERC20 for IERC20;
@@ -29,20 +41,26 @@ contract CampaignEscrow {
 
     IERC20 public immutable eurc;
     address public immutable city;
+    IWorldID public immutable worldId;
+    uint256 public immutable externalNullifierHash;
 
     uint256 public nextCampaignId;
     mapping(uint256 => Campaign) public campaigns;
 
+    // campaignId => nullifierHash => checked in
+    mapping(uint256 => mapping(uint256 => bool)) public checkins;
+
     address[] public ngos;
     mapping(address => bool) public isNgo;
 
+    uint256 public constant GROUP_ID = 1; // Orb verification
     uint256 public constant REVIEW_PERIOD = 7 days;
 
     // --- Events ---
 
     event CampaignCreated(uint256 indexed campaignId, address indexed ngo, uint256 fundingRequired);
     event CampaignFunded(uint256 indexed campaignId, address indexed sponsor);
-    event VolunteerRecorded(uint256 indexed campaignId, uint256 newCount);
+    event VolunteerCheckedIn(uint256 indexed campaignId, uint256 nullifierHash);
     event CompletionSubmitted(uint256 indexed campaignId);
     event CompletionRejected(uint256 indexed campaignId);
     event FundsReleased(uint256 indexed campaignId, uint256 amount);
@@ -60,6 +78,7 @@ contract CampaignEscrow {
     error InvalidDeadlines();
     error InvalidFunding();
     error MinVolunteersNotMet(uint256 required, uint256 actual);
+    error AlreadyCheckedIn();
 
     modifier onlyCity() {
         if (msg.sender != city) revert NotCity();
@@ -71,9 +90,18 @@ contract CampaignEscrow {
         _;
     }
 
-    constructor(address _eurc, address _city, address[] memory _ngos) {
+    constructor(
+        address _eurc,
+        address _city,
+        address[] memory _ngos,
+        IWorldID _worldId,
+        string memory _appId,
+        string memory _action
+    ) {
         eurc = IERC20(_eurc);
         city = _city;
+        worldId = _worldId;
+        externalNullifierHash = uint256(keccak256(abi.encodePacked(_appId, _action))) >> 8;
         for (uint256 i = 0; i < _ngos.length; i++) {
             isNgo[_ngos[i]] = true;
             ngos.push(_ngos[i]);
@@ -87,6 +115,37 @@ contract CampaignEscrow {
             isNgo[ngo] = true;
             ngos.push(ngo);
         }
+    }
+
+    // --- Volunteer check-in (World ID verified on-chain) ---
+
+    function checkIn(
+        uint256 campaignId,
+        uint256 root,
+        uint256 nullifierHash,
+        uint256[8] calldata proof
+    ) external {
+        Campaign storage c = campaigns[campaignId];
+        if (c.status != CampaignStatus.Active)
+            revert WrongStatus(CampaignStatus.Active, c.status);
+        if (checkins[campaignId][nullifierHash]) revert AlreadyCheckedIn();
+
+        // Signal = string representation of campaignId (matches frontend)
+        uint256 signalHash = uint256(keccak256(abi.encodePacked(Strings.toString(campaignId)))) >> 8;
+
+        worldId.verifyProof(
+            root,
+            GROUP_ID,
+            signalHash,
+            nullifierHash,
+            externalNullifierHash,
+            proof
+        );
+
+        checkins[campaignId][nullifierHash] = true;
+        c.volunteerCount++;
+
+        emit VolunteerCheckedIn(campaignId, nullifierHash);
     }
 
     // --- NGO ---
@@ -191,18 +250,6 @@ contract CampaignEscrow {
         if (block.timestamp <= c.reviewDeadline) revert DeadlineNotPassed();
 
         _releaseFunds(campaignId);
-    }
-
-    // --- Backend records volunteer count (called by city/operator) ---
-
-    function recordVolunteers(uint256 campaignId, uint256 count) external onlyCity {
-        Campaign storage c = campaigns[campaignId];
-        if (c.status != CampaignStatus.Active)
-            revert WrongStatus(CampaignStatus.Active, c.status);
-
-        c.volunteerCount = count;
-
-        emit VolunteerRecorded(campaignId, count);
     }
 
     // --- Internal ---
