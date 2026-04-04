@@ -347,6 +347,36 @@ export default function NgoPage() {
               </div>
             </>
           )}
+
+          {campaign.status === 'Completed' && (
+            <>
+              {campaignPhotos.length > 0 && (
+                <>
+                  <p className="font-semibold">Event Photos</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {campaignPhotos.map((p, i) => (
+                      <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                        <img src={p} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <p className="font-semibold text-green-800">{campaign.funding_required} EURC released</p>
+                <p className="text-sm text-green-600 mt-1">Campaign completed successfully</p>
+              </div>
+            </>
+          )}
+
+          {campaign.status === 'Expired' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-red-800">Campaign expired</p>
+              <p className="text-sm text-red-600 mt-1">
+                {campaign.sponsor ? 'Funds refunded to sponsor' : 'No sponsor found before deadline'}
+              </p>
+            </div>
+          )}
         </Page.Main>
       </>
     );
