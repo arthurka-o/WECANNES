@@ -66,9 +66,8 @@ export default function BusinessPage() {
   const handleFund = async (campaignId: number) => {
     const c = campaigns.find((c) => c.id === campaignId);
     if (!c) return;
-    const amount = parseUnits(String(c.funding_required), 6); // EURC has 6 decimals
 
-    // Approve EURC + fund campaign in one MiniKit batch
+    const amount = parseUnits(String(c.funding_required), 6); // EURC has 6 decimals
     const result = await MiniKit.sendTransaction({
       chainId: 480,
       transactions: [
@@ -92,7 +91,6 @@ export default function BusinessPage() {
     });
     await poll(result.data.userOpHash);
 
-    // Update SQLite to keep in sync
     await fetch('/api/campaigns/fund', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

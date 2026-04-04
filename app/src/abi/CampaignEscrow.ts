@@ -78,12 +78,13 @@ export const CAMPAIGN_ESCROW_ABI = [
     type: 'function',
     name: 'createCampaign',
     inputs: [
+      { name: 'campaignId', type: 'uint256' },
       { name: 'fundingRequired', type: 'uint256' },
       { name: 'minVolunteers', type: 'uint256' },
       { name: 'sponsorshipDeadline', type: 'uint256' },
       { name: 'eventDeadline', type: 'uint256' },
     ],
-    outputs: [{ name: 'campaignId', type: 'uint256' }],
+    outputs: [],
     stateMutability: 'nonpayable',
   },
   {

@@ -44,7 +44,6 @@ contract CampaignEscrow {
     IWorldID public immutable worldId;
     uint256 public immutable externalNullifierHash;
 
-    uint256 public nextCampaignId;
     mapping(uint256 => Campaign) public campaigns;
 
     // campaignId => nullifierHash => checked in
@@ -79,6 +78,7 @@ contract CampaignEscrow {
     error InvalidFunding();
     error MinVolunteersNotMet(uint256 required, uint256 actual);
     error AlreadyCheckedIn();
+    error CampaignAlreadyExists();
 
     modifier onlyCity() {
         if (msg.sender != city) revert NotCity();
@@ -151,16 +151,17 @@ contract CampaignEscrow {
     // --- NGO ---
 
     function createCampaign(
+        uint256 campaignId,
         uint256 fundingRequired,
         uint256 minVolunteers,
         uint256 sponsorshipDeadline,
         uint256 eventDeadline
-    ) external onlyNgo returns (uint256 campaignId) {
+    ) external onlyNgo {
+        if (campaigns[campaignId].ngo != address(0)) revert CampaignAlreadyExists();
         if (fundingRequired == 0) revert InvalidFunding();
         if (sponsorshipDeadline <= block.timestamp) revert InvalidDeadlines();
         if (eventDeadline <= sponsorshipDeadline) revert InvalidDeadlines();
 
-        campaignId = nextCampaignId++;
         campaigns[campaignId] = Campaign({
             ngo: msg.sender,
             sponsor: address(0),

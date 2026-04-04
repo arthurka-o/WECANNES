@@ -1,11 +1,21 @@
 'use client';
 
+import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
 import type { Campaign, Goal } from '@/lib/db';
+import { MiniKit } from '@worldcoin/minikit-js';
+import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
+import { createPublicClient, encodeFunctionData, http, parseUnits } from 'viem';
+import { worldchain } from 'viem/chains';
+
+const client = createPublicClient({
+  chain: worldchain,
+  transport: http('https://worldchain-mainnet.g.alchemy.com/public'),
+});
 
 function NewCampaignForm({
   goals,
@@ -17,6 +27,7 @@ function NewCampaignForm({
   onBack: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const { poll } = useUserOperationReceipt({ client });
   const [form, setForm] = useState({
     goal_id: goals[0]?.id ?? 1,
     title: '',
@@ -33,17 +44,50 @@ function NewCampaignForm({
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    await fetch('/api/campaigns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        ngo: 'OceanCare', // hardcoded for demo
-        funding_required: Number(form.funding_required),
-        min_volunteers: Number(form.min_volunteers),
-        max_volunteers: Number(form.max_volunteers),
-      }),
-    });
+    try {
+      // Create in SQLite first to get the canonical ID
+      const res = await fetch('/api/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          ngo: 'OceanCare', // hardcoded for demo
+          funding_required: Number(form.funding_required),
+          min_volunteers: Number(form.min_volunteers),
+          max_volunteers: Number(form.max_volunteers),
+        }),
+      });
+      const { id: campaignId } = await res.json();
+
+      // Create on-chain with the same ID
+      const now = new Date();
+      const sponsorshipDeadline = Math.floor(new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime() / 1000);
+      const eventDeadline = Math.floor(new Date(new Date(form.event_date).getTime() + 30 * 24 * 60 * 60 * 1000).getTime() / 1000);
+      const fundingAmount = parseUnits(form.funding_required, 6); // EURC 6 decimals
+
+      const result = await MiniKit.sendTransaction({
+        chainId: 480,
+        transactions: [
+          {
+            to: CAMPAIGN_ESCROW_ADDRESS,
+            data: encodeFunctionData({
+              abi: CAMPAIGN_ESCROW_ABI,
+              functionName: 'createCampaign',
+              args: [
+                BigInt(campaignId),
+                fundingAmount,
+                BigInt(form.min_volunteers),
+                BigInt(sponsorshipDeadline),
+                BigInt(eventDeadline),
+              ],
+            }),
+          },
+        ],
+      });
+      await poll(result.data.userOpHash);
+    } catch (err) {
+      console.error('Create campaign error:', err);
+    }
     setSubmitting(false);
     onCreated();
   };
@@ -109,6 +153,7 @@ function NewCampaignForm({
 
 export default function NgoPage() {
   const router = useRouter();
+  const { poll } = useUserOperationReceipt({ client });
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -242,22 +287,43 @@ export default function NgoPage() {
             variant="primary"
             className="w-full"
             onClick={async () => {
-              const formData = new FormData();
-              formData.append('campaignId', String(campaign.id));
-              selectedPhotos.forEach((f) => formData.append('photos', f));
+              try {
+                // Submit completion on-chain
+                const result = await MiniKit.sendTransaction({
+                  chainId: 480,
+                  transactions: [
+                    {
+                      to: CAMPAIGN_ESCROW_ADDRESS,
+                      data: encodeFunctionData({
+                        abi: CAMPAIGN_ESCROW_ABI,
+                        functionName: 'submitCompletion',
+                        args: [BigInt(campaign.id)],
+                      }),
+                    },
+                  ],
+                });
+                await poll(result.data.userOpHash);
 
-              const res = await fetch('/api/campaigns/submit', {
-                method: 'POST',
-                body: formData,
-              });
-              if (res.ok) {
-                setSelectedPhotos([]);
-                setShowSubmit(false);
-                setSelectedCampaign(null);
-                setRefreshKey((k) => k + 1);
-              } else {
-                const data = await res.json();
-                alert(data.error);
+                // Upload photos + update SQLite
+                const formData = new FormData();
+                formData.append('campaignId', String(campaign.id));
+                selectedPhotos.forEach((f) => formData.append('photos', f));
+
+                const res = await fetch('/api/campaigns/submit', {
+                  method: 'POST',
+                  body: formData,
+                });
+                if (res.ok) {
+                  setSelectedPhotos([]);
+                  setShowSubmit(false);
+                  setSelectedCampaign(null);
+                  setRefreshKey((k) => k + 1);
+                } else {
+                  const data = await res.json();
+                  alert(data.error);
+                }
+              } catch (err) {
+                console.error('Submit completion error:', err);
               }
             }}
           >
