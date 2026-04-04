@@ -286,9 +286,17 @@ export function createCampaign(data: {
   return Number(result.lastInsertRowid);
 }
 
+export function updateCampaignStatus(campaignId: number, status: string): void {
+  db.prepare('UPDATE campaigns SET status = ? WHERE id = ?').run(status, campaignId);
+}
+
 export function getCampaignPhotos(campaignId: number): string[] {
   const rows = db.prepare('SELECT file_path FROM campaign_photos WHERE campaign_id = ?').all(campaignId) as { file_path: string }[];
   return rows.map((r) => r.file_path);
+}
+
+export function addCampaignPhoto(campaignId: number, filePath: string): void {
+  db.prepare('INSERT INTO campaign_photos (campaign_id, file_path) VALUES (?, ?)').run(campaignId, filePath);
 }
 
 // --- Seed ---
@@ -315,6 +323,7 @@ function seed(): void {
   insertCampaign.run(1, 'Îles de Lérins Beach Restoration','Restore beach areas on Sainte-Marguerite island.',                 'OceanCare',        'Club Nautique',       450, 15, 25, '2026-03-20', '2026-02-20', '2026-04-20', 'Completed',     'Île Sainte-Marguerite, Cannes');
   insertCampaign.run(1, 'Spring Coast Sweep',              'Early spring cleanup of the eastern coast.',                        'OceanCare',        'Café del Mar',        250, 10, 20, '2026-02-15', '2026-01-15', '2026-03-15', 'Expired',       'Plage du Mouré Rouge, Cannes');
   insertCampaign.run(2, 'After-School Tutoring',           'Weekly tutoring sessions for middle school students.',              'LireEnsemble',     'Fnac Cannes',         300, 12, 20, '2026-03-01', '2026-02-01', '2026-04-01', 'Expired',       'Collège Les Mûriers, Cannes');
+  insertCampaign.run(1, 'Mandelieu Estuary Cleanup',       'Clean up the Siagne river estuary before nesting season.',          'OceanCare',        'Decathlon Cannes',    400, 10, 25, '2026-05-20', '2026-04-20', '2026-06-20', 'Active',        'Estuaire de la Siagne, Mandelieu');
 
   const insertReward = db.prepare('INSERT INTO civic_rewards (name, total, remaining, file_path) VALUES (?, ?, ?, ?)');
   insertReward.run('Museum Pass', 100, 100, null);
@@ -329,9 +338,13 @@ function seed(): void {
   db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(2, demoNullifier);
   db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(3, demoNullifier);
   db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(5, demoNullifier);
-  // Fake other volunteers for PendingReview campaign
+  // Fake other volunteers for PendingReview campaign (id=5)
   for (let i = 0; i < 22; i++) {
     db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(5, `fake-volunteer-${i}`);
+  }
+  // Fake volunteers for Active campaign with enough to submit (id=9)
+  for (let i = 0; i < 12; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(9, `fake-volunteer-estuary-${i}`);
   }
 }
 

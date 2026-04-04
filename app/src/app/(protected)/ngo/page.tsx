@@ -116,6 +116,8 @@ export default function NgoPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
+  const [campaignPhotos, setCampaignPhotos] = useState<string[]>([]);
 
   useEffect(() => {
     fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
@@ -127,6 +129,16 @@ export default function NgoPage() {
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const [qrValue, setQrValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedCampaign !== null) {
+      fetch(`/api/campaigns/photos?campaignId=${selectedCampaign}`)
+        .then((r) => r.json())
+        .then(setCampaignPhotos);
+    } else {
+      setCampaignPhotos([]);
+    }
+  }, [selectedCampaign, refreshKey]);
 
   useEffect(() => {
     if (showQR && campaign) {
@@ -199,12 +211,24 @@ export default function NgoPage() {
           <p className="font-semibold">Event Photos</p>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="aspect-square bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
+            {selectedPhotos.map((f, i) => (
+              <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
+                <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+              </div>
+            ))}
+            <label className="aspect-square bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer">
               <p className="text-gray-400 text-xs text-center">+ Add photo</p>
-            </div>
-            <div className="aspect-square bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center">
-              <p className="text-gray-400 text-xs text-center">+ Add photo</p>
-            </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setSelectedPhotos((p) => [...p, file]);
+                  e.target.value = '';
+                }}
+              />
+            </label>
           </div>
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-1">
@@ -213,7 +237,30 @@ export default function NgoPage() {
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
           </div>
 
-          <Button size="lg" variant="primary" className="w-full">
+          <Button
+            size="lg"
+            variant="primary"
+            className="w-full"
+            onClick={async () => {
+              const formData = new FormData();
+              formData.append('campaignId', String(campaign.id));
+              selectedPhotos.forEach((f) => formData.append('photos', f));
+
+              const res = await fetch('/api/campaigns/submit', {
+                method: 'POST',
+                body: formData,
+              });
+              if (res.ok) {
+                setSelectedPhotos([]);
+                setShowSubmit(false);
+                setSelectedCampaign(null);
+                setRefreshKey((k) => k + 1);
+              } else {
+                const data = await res.json();
+                alert(data.error);
+              }
+            }}
+          >
             Submit for Review
           </Button>
           <p className="text-xs text-gray-400 text-center">
@@ -282,9 +329,23 @@ export default function NgoPage() {
           )}
 
           {campaign.status === 'PendingReview' && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-              <p className="text-sm text-amber-800">Waiting for sponsor to review and approve</p>
-            </div>
+            <>
+              {campaignPhotos.length > 0 && (
+                <>
+                  <p className="font-semibold">Submitted Photos</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {campaignPhotos.map((p, i) => (
+                      <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                        <img src={p} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                <p className="text-sm text-amber-800">Waiting for sponsor to review and approve</p>
+              </div>
+            </>
           )}
         </Page.Main>
       </>
