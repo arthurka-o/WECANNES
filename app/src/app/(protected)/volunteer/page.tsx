@@ -1,14 +1,18 @@
 'use client';
 
+import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
 import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
+import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { createPublicClient, decodeAbiParameters, encodeFunctionData, http } from 'viem';
+import { worldchain } from 'viem/chains';
 
 function QrScanner({
   campaignId,
@@ -87,6 +91,11 @@ function QrScanner({
   );
 }
 
+const client = createPublicClient({
+  chain: worldchain,
+  transport: http('https://worldchain-mainnet.g.alchemy.com/public'),
+});
+
 function WorldIdCheckIn({
   campaignId,
   walletAddress,
@@ -99,6 +108,7 @@ function WorldIdCheckIn({
   onError: () => void;
 }) {
   const [state, setState] = useState<'pending' | 'success' | 'failed' | undefined>(undefined);
+  const { poll } = useUserOperationReceipt({ client });
 
   const handleVerify = async () => {
     setState('pending');
@@ -137,7 +147,7 @@ function WorldIdCheckIn({
         return;
       }
 
-      // Verify on backend
+      // Verify on backend (v4 API + SQLite)
       const verifyRes = await fetch('/api/verify-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,14 +155,46 @@ function WorldIdCheckIn({
       });
       const data = await verifyRes.json();
 
-      if (data.verifyRes.success) {
-        setState('success');
-        setTimeout(onSuccess, 1000);
-      } else {
+      if (!data.verifyRes.success) {
         setState('failed');
         setTimeout(() => { setState(undefined); onError(); }, 2000);
+        return;
       }
-    } catch {
+
+      // Submit v3 proof on-chain via MiniKit (free tx for verified humans)
+      if (data.v3Proof) {
+        const { merkle_root, nullifier, proof } = data.v3Proof;
+        const [unpackedProof] = decodeAbiParameters(
+          [{ type: 'uint256[8]' }],
+          proof as `0x${string}`,
+        );
+
+        const txResult = await MiniKit.sendTransaction({
+          chainId: 480,
+          transactions: [
+            {
+              to: CAMPAIGN_ESCROW_ADDRESS,
+              data: encodeFunctionData({
+                abi: CAMPAIGN_ESCROW_ABI,
+                functionName: 'checkIn',
+                args: [
+                  BigInt(campaignId),
+                  BigInt(merkle_root),
+                  BigInt(nullifier),
+                  unpackedProof,
+                ],
+              }),
+            },
+          ],
+        });
+
+        await poll(txResult.data.userOpHash);
+      }
+
+      setState('success');
+      setTimeout(onSuccess, 1000);
+    } catch (err) {
+      console.error('Check-in error:', err);
       setState('failed');
       setTimeout(() => { setState(undefined); onError(); }, 2000);
     }
