@@ -27,5 +27,10 @@ Thumbs.db
 *.md
 !app/README.md
 
+# Database
+*.db
+*.db-wal
+*.db-shm
+
 # Claude
 .claude/

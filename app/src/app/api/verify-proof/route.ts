@@ -1,12 +1,11 @@
+import { hasCheckedIn, recordCheckIn, setUserNullifier } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
-  const { payload } = await req.json();
+  const { payload, campaignId, walletAddress } = await req.json();
   const rp_id = process.env.RP_ID;
 
-  console.log('Verifying proof with v4 API, rp_id:', rp_id);
-  console.log('Payload:', JSON.stringify(payload));
-
+  // Verify with World ID v4
   const response = await fetch(
     `https://developer.world.org/api/v4/verify/${rp_id}`,
     {
@@ -17,7 +16,28 @@ export async function POST(req: NextRequest) {
   );
 
   const verifyRes = await response.json();
-  console.log('World ID v4 verify response:', JSON.stringify(verifyRes));
 
-  return NextResponse.json({ verifyRes }, { status: response.status });
+  if (!verifyRes.success) {
+    return NextResponse.json({ verifyRes }, { status: 400 });
+  }
+
+  const nullifier = verifyRes.nullifier ?? verifyRes.results?.[0]?.nullifier;
+
+  // Link wallet address to nullifier
+  if (walletAddress && nullifier) {
+    setUserNullifier(walletAddress, nullifier);
+  }
+
+  // Check for duplicate check-in on this campaign
+  if (campaignId != null && nullifier) {
+    if (hasCheckedIn(campaignId, nullifier)) {
+      return NextResponse.json(
+        { verifyRes: { success: false, error: 'Already checked in to this campaign' } },
+        { status: 400 },
+      );
+    }
+    recordCheckIn(campaignId, nullifier);
+  }
+
+  return NextResponse.json({ verifyRes });
 }

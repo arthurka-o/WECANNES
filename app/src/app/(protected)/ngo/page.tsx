@@ -4,7 +4,8 @@ import { Page } from '@/components/PageLayout';
 import { campaigns, goals } from '@/lib/mock-data';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { useEffect, useState } from 'react';
 
 export default function NgoPage() {
   const router = useRouter();
@@ -16,6 +17,22 @@ export default function NgoPage() {
   const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
 
   // QR code display for volunteer check-in
+  const [qrValue, setQrValue] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showQR && campaign) {
+      fetch('/api/checkin-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: campaign.id }),
+      })
+        .then((r) => r.json())
+        .then((data) => setQrValue(`civic:${data.campaignId}:${data.token}`));
+    } else {
+      setQrValue(null);
+    }
+  }, [showQR, campaign]);
+
   if (showQR && campaign) {
     return (
       <>
@@ -28,9 +45,13 @@ export default function NgoPage() {
           />
         </Page.Header>
         <Page.Main className="flex flex-col items-center justify-center gap-4">
-          <div className="w-64 h-64 bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center">
-            <p className="text-gray-400 text-sm text-center">QR Code<br />Campaign #{campaign.id}</p>
-          </div>
+          {qrValue ? (
+            <QRCodeSVG value={qrValue} size={256} />
+          ) : (
+            <div className="w-64 h-64 flex items-center justify-center">
+              <p className="text-gray-400 text-sm">Generating...</p>
+            </div>
+          )}
           <p className="text-sm text-gray-600 text-center">
             Show this to volunteers so they can scan and check in.
           </p>

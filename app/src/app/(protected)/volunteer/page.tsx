@@ -2,19 +2,216 @@
 
 import { Page } from '@/components/PageLayout';
 import { campaigns, civicRewards, goals } from '@/lib/mock-data';
-import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
+import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Html5Qrcode } from 'html5-qrcode';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+function QrScanner({
+  campaignId,
+  onSuccess,
+  onError,
+}: {
+  campaignId: number;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const [scanning, setScanning] = useState(false);
+
+  useEffect(() => {
+    const scanner = new Html5Qrcode('qr-reader');
+    scannerRef.current = scanner;
+
+    scanner
+      .start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        async (text) => {
+          // Expected format: civic:campaignId:token
+          const parts = text.split(':');
+          if (parts.length !== 3 || parts[0] !== 'civic') {
+            await scanner.stop();
+            onError('Not a valid check-in QR code');
+            return;
+          }
+          const scannedCampaignId = parseInt(parts[1]);
+          const token = parts[2];
+
+          if (scannedCampaignId !== campaignId) {
+            await scanner.stop();
+            onError('Wrong campaign QR code');
+            return;
+          }
+
+          // Validate token with backend
+          const res = await fetch('/api/checkin-token', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ campaignId: scannedCampaignId, token }),
+          });
+          const data = await res.json();
+          await scanner.stop();
+
+          if (data.valid) {
+            onSuccess();
+          } else {
+            onError('Invalid or expired QR code');
+          }
+        },
+        () => {}, // ignore scan failures (no QR in frame)
+      )
+      .then(() => setScanning(true))
+      .catch(() => onError('Could not access camera'));
+
+    return () => {
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, [campaignId, onSuccess, onError]);
+
+  return (
+    <div className="space-y-3">
+      <div id="qr-reader" className="rounded-xl overflow-hidden" />
+      {!scanning && (
+        <p className="text-sm text-gray-400 text-center">Starting camera...</p>
+      )}
+      <p className="text-sm text-gray-600 text-center">
+        Scan the QR code from the NGO coordinator
+      </p>
+    </div>
+  );
+}
+
+function WorldIdCheckIn({
+  campaignId,
+  walletAddress,
+  onSuccess,
+  onError,
+}: {
+  campaignId: number;
+  walletAddress: string;
+  onSuccess: () => void;
+  onError: () => void;
+}) {
+  const [state, setState] = useState<'pending' | 'success' | 'failed' | undefined>(undefined);
+
+  const handleVerify = async () => {
+    setState('pending');
+    try {
+      const action = 'checkin';
+
+      // Get RP signature
+      const rpRes = await fetch('/api/rp-signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (!rpRes.ok) throw new Error('Failed to get RP signature');
+
+      const rpSig = await rpRes.json();
+      const rpContext: RpContext = {
+        rp_id: rpSig.rp_id,
+        nonce: rpSig.nonce,
+        created_at: rpSig.created_at,
+        expires_at: rpSig.expires_at,
+        signature: rpSig.sig,
+      };
+
+      // IDKit request
+      const request = await IDKit.request({
+        app_id: process.env.NEXT_PUBLIC_APP_ID as `app_${string}`,
+        action,
+        rp_context: rpContext,
+        allow_legacy_proofs: true,
+      }).preset(orbLegacy({ signal: `${campaignId}-${Date.now()}` }));
+
+      const completion = await request.pollUntilCompletion();
+      if (!completion.success) {
+        setState('failed');
+        setTimeout(() => { setState(undefined); onError(); }, 2000);
+        return;
+      }
+
+      // Verify on backend
+      const verifyRes = await fetch('/api/verify-proof', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: completion.result, campaignId, walletAddress }),
+      });
+      const data = await verifyRes.json();
+
+      if (data.verifyRes.success) {
+        setState('success');
+        setTimeout(onSuccess, 1000);
+      } else {
+        setState('failed');
+        setTimeout(() => { setState(undefined); onError(); }, 2000);
+      }
+    } catch {
+      setState('failed');
+      setTimeout(() => { setState(undefined); onError(); }, 2000);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+        <p className="text-sm text-blue-800">QR verified! Now confirm your identity.</p>
+      </div>
+      <LiveFeedback
+        label={{
+          failed: 'Verification failed',
+          pending: 'Verifying...',
+          success: 'Verified!',
+        }}
+        state={state}
+        className="w-full"
+      >
+        <Button
+          onClick={handleVerify}
+          disabled={state === 'pending'}
+          size="lg"
+          variant="primary"
+          className="w-full"
+        >
+          Verify with World ID
+        </Button>
+      </LiveFeedback>
+    </div>
+  );
+}
 
 export default function VolunteerPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [step, setStep] = useState<'browse' | 'scan' | 'verify' | 'done'>('browse');
   const [showRewards, setShowRewards] = useState(false);
+  const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
+
+  const walletAddress = session?.user?.walletAddress;
+
+  // Load check-in status from DB via wallet address
+  useEffect(() => {
+    if (walletAddress) {
+      fetch('/api/checkin-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress }),
+      })
+        .then((r) => r.json())
+        .then((data) => setCheckedInCampaigns(data.campaigns));
+    }
+  }, [walletAddress, step]); // re-fetch after check-in completes
 
   const activeCampaigns = campaigns.filter((c) => c.status === 'Active');
   const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
   const goal = campaign ? goals.find((g) => g.id === campaign.goalId) : null;
+  const isAlreadyCheckedIn = campaign ? checkedInCampaigns.includes(campaign.id) : false;
 
   const totalRewardsLeft = civicRewards.reduce((s, r) => s + r.remaining, 0);
 
@@ -93,7 +290,16 @@ export default function VolunteerPage() {
           </div>
 
           {/* Check-in flow */}
-          {step === 'browse' && (
+          {step === 'browse' && isAlreadyCheckedIn && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-green-800">Checked in!</p>
+              <p className="text-sm text-green-600 mt-1">
+                You'll receive civic rewards when the campaign completes.
+              </p>
+            </div>
+          )}
+
+          {step === 'browse' && !isAlreadyCheckedIn && (
             <Button
               size="lg"
               variant="primary"
@@ -105,38 +311,23 @@ export default function VolunteerPage() {
           )}
 
           {step === 'scan' && (
-            <div className="space-y-3">
-              <div className="bg-gray-100 rounded-xl p-8 flex flex-col items-center justify-center gap-2">
-                <div className="w-48 h-48 border-2 border-dashed border-gray-400 rounded-lg flex items-center justify-center">
-                  <p className="text-gray-400 text-sm">Camera viewfinder</p>
-                </div>
-                <p className="text-sm text-gray-600">Scan the QR code from the NGO coordinator</p>
-              </div>
-              <Button
-                size="lg"
-                variant="primary"
-                className="w-full"
-                onClick={() => setStep('verify')}
-              >
-                Mock: QR Scanned
-              </Button>
-            </div>
+            <QrScanner
+              campaignId={campaign.id}
+              onSuccess={() => setStep('verify')}
+              onError={(msg) => {
+                alert(msg);
+                setStep('browse');
+              }}
+            />
           )}
 
-          {step === 'verify' && (
-            <div className="space-y-3">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                <p className="text-sm text-blue-800">QR verified! Now confirm your identity.</p>
-              </div>
-              <Button
-                size="lg"
-                variant="primary"
-                className="w-full"
-                onClick={() => setStep('done')}
-              >
-                Verify with World ID
-              </Button>
-            </div>
+          {step === 'verify' && walletAddress && (
+            <WorldIdCheckIn
+              campaignId={campaign.id}
+              walletAddress={walletAddress}
+              onSuccess={() => setStep('done')}
+              onError={() => setStep('browse')}
+            />
           )}
 
           {step === 'done' && (
