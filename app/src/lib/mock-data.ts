@@ -129,7 +129,7 @@ export const campaigns: Campaign[] = [
     maxVolunteers: 15,
     volunteerCount: 10,
     deadline: '2026-07-01',
-    status: 'PendingReview',
+    status: 'Completed',
     location: 'Bibliothèque Municipale, Cannes',
     photos: ['/mock-photo-1.jpg', '/mock-photo-2.jpg'],
   },

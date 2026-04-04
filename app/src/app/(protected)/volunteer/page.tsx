@@ -1,7 +1,8 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import { campaigns, civicRewards, goals } from '@/lib/mock-data';
+import { campaigns, goals } from '@/lib/mock-data';
+import type { CivicReward } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -191,11 +192,16 @@ export default function VolunteerPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [step, setStep] = useState<'browse' | 'scan' | 'verify' | 'done'>('browse');
   const [showRewards, setShowRewards] = useState(false);
+  const [tab, setTab] = useState<'active' | 'completed'>('active');
   const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
+  const [claimedCampaigns, setClaimedCampaigns] = useState<number[]>([]);
+  const [rewards, setRewards] = useState<CivicReward[]>([]);
+  const [claimedReward, setClaimedReward] = useState<CivicReward | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
   const walletAddress = session?.user?.walletAddress;
 
-  // Load check-in status from DB via wallet address
+  // Load check-in status + claim status
   useEffect(() => {
     if (walletAddress) {
       fetch('/api/checkin-status', {
@@ -205,17 +211,60 @@ export default function VolunteerPage() {
       })
         .then((r) => r.json())
         .then((data) => setCheckedInCampaigns(data.campaigns));
+
+      fetch('/api/rewards', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress }),
+      })
+        .then((r) => r.json())
+        .then((data) => setClaimedCampaigns(data.claimedCampaigns));
     }
-  }, [walletAddress, step]); // re-fetch after check-in completes
+  }, [walletAddress, step, claiming]);
+
+  // Load rewards
+  useEffect(() => {
+    fetch('/api/rewards').then((r) => r.json()).then((data) => setRewards(data.rewards));
+  }, [claiming]);
+
+  // Load claimed reward for selected campaign
+  useEffect(() => {
+    if (walletAddress && selectedCampaign !== null) {
+      fetch('/api/rewards', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ walletAddress, campaignId: selectedCampaign }),
+      })
+        .then((r) => r.json())
+        .then((data) => setClaimedReward(data.claimedReward));
+    } else {
+      setClaimedReward(null);
+    }
+  }, [walletAddress, selectedCampaign, claiming]);
 
   const activeCampaigns = campaigns.filter((c) => c.status === 'Active');
+  const completedCampaigns = campaigns.filter(
+    (c) => c.status === 'Completed' && checkedInCampaigns.includes(c.id)
+  );
   const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
   const goal = campaign ? goals.find((g) => g.id === campaign.goalId) : null;
   const isAlreadyCheckedIn = campaign ? checkedInCampaigns.includes(campaign.id) : false;
+  const hasClaimedReward = campaign ? claimedCampaigns.includes(campaign.id) : false;
 
-  const totalRewardsLeft = civicRewards.reduce((s, r) => s + r.remaining, 0);
+  const totalRewardsLeft = rewards.reduce((s, r) => s + r.remaining, 0);
 
-  // Reward detail overlay
+  const handleClaimReward = async (rewardId: number) => {
+    if (!walletAddress || !campaign) return;
+    setClaiming(true);
+    await fetch('/api/rewards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ walletAddress, rewardId, campaignId: campaign.id }),
+    });
+    setClaiming(false);
+  };
+
+  // Reward pool overlay
   if (showRewards) {
     return (
       <>
@@ -229,11 +278,10 @@ export default function VolunteerPage() {
         </Page.Header>
         <Page.Main className="flex flex-col gap-3">
           <p className="text-sm text-gray-500">Available to all volunteers — first come, first serve</p>
-          {civicRewards.map((r) => (
-            <div key={r.name} className="bg-white border rounded-xl p-4 flex justify-between items-center">
+          {rewards.map((r) => (
+            <div key={r.id} className="bg-white border rounded-xl p-4 flex justify-between items-center">
               <div>
                 <p className="font-semibold">{r.name}</p>
-                <p className="text-sm text-gray-500">First come, first serve</p>
               </div>
               <div className="text-right">
                 {r.remaining > 0 ? (
@@ -252,7 +300,66 @@ export default function VolunteerPage() {
     );
   }
 
-  // Campaign detail + check-in flow
+  // Completed campaign detail — claim reward
+  if (campaign && goal && campaign.status === 'Completed') {
+    return (
+      <>
+        <Page.Header className="p-0">
+          <TopBar
+            title={campaign.title}
+            startAdornment={
+              <button onClick={() => setSelectedCampaign(null)}>← Back</button>
+            }
+          />
+        </Page.Header>
+        <Page.Main className="flex flex-col gap-4">
+          <Chip label="Completed" />
+          <p className="text-sm text-gray-600">{campaign.location}</p>
+          <p>{campaign.description}</p>
+
+          {hasClaimedReward && claimedReward ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-green-800">Reward claimed!</p>
+              <p className="text-sm text-green-600 mt-1">{claimedReward.name}</p>
+              {claimedReward.file_path && (
+                <a
+                  href={claimedReward.file_path}
+                  className="text-sm text-blue-600 underline mt-2 block"
+                  download
+                >
+                  Download ticket
+                </a>
+              )}
+            </div>
+          ) : (
+            <>
+              <p className="font-semibold">Choose your reward</p>
+              {rewards.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => handleClaimReward(r.id)}
+                  disabled={r.remaining <= 0 || claiming}
+                  className={`text-left border rounded-xl p-4 flex justify-between items-center ${
+                    r.remaining <= 0 ? 'opacity-50' : 'bg-white'
+                  }`}
+                >
+                  <p className="font-semibold">{r.name}</p>
+                  <p className="text-sm text-gray-500">{r.remaining} left</p>
+                </button>
+              ))}
+              {totalRewardsLeft === 0 && (
+                <p className="text-sm text-amber-600 text-center">
+                  No rewards available right now. Check back later.
+                </p>
+              )}
+            </>
+          )}
+        </Page.Main>
+      </>
+    );
+  }
+
+  // Active campaign detail + check-in flow
   if (campaign && goal) {
     const spotsLeft = campaign.maxVolunteers - campaign.volunteerCount;
 
@@ -289,7 +396,6 @@ export default function VolunteerPage() {
             </p>
           </div>
 
-          {/* Check-in flow */}
           {step === 'browse' && isAlreadyCheckedIn && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-green-800">Checked in!</p>
@@ -343,7 +449,7 @@ export default function VolunteerPage() {
     );
   }
 
-  // Campaign list
+  // Campaign list with tabs
   return (
     <>
       <Page.Header className="p-0">
@@ -363,14 +469,25 @@ export default function VolunteerPage() {
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
-        {activeCampaigns.length === 0 && (
-          <p className="text-center text-gray-500 mt-8">
-            No active campaigns right now.
-          </p>
-        )}
-        {activeCampaigns.map((c) => {
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTab('active')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'active' ? 'bg-black text-white' : 'bg-gray-100'}`}
+          >
+            Active ({activeCampaigns.length})
+          </button>
+          <button
+            onClick={() => setTab('completed')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'completed' ? 'bg-black text-white' : 'bg-gray-100'}`}
+          >
+            Completed ({completedCampaigns.length})
+          </button>
+        </div>
+
+        {tab === 'active' && activeCampaigns.map((c) => {
           const g = goals.find((g) => g.id === c.goalId);
           const spotsLeft = c.maxVolunteers - c.volunteerCount;
+          const checkedIn = checkedInCampaigns.includes(c.id);
           return (
             <button
               key={c.id}
@@ -384,11 +501,44 @@ export default function VolunteerPage() {
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>{c.volunteerCount}/{c.maxVolunteers} volunteers</span>
-                {spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
+                {checkedIn && <span className="text-green-600">Checked in</span>}
+                {!checkedIn && spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
               </div>
             </button>
           );
         })}
+
+        {tab === 'active' && activeCampaigns.length === 0 && (
+          <p className="text-center text-gray-500 mt-8">No active campaigns right now.</p>
+        )}
+
+        {tab === 'completed' && completedCampaigns.map((c) => {
+          const g = goals.find((g) => g.id === c.goalId);
+          const claimed = claimedCampaigns.includes(c.id);
+          return (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCampaign(c.id)}
+              className="text-left bg-white border rounded-xl p-4 space-y-2"
+            >
+              <div className="flex justify-between items-start">
+                <p className="font-semibold">{c.title}</p>
+                <Chip label={g?.category ?? ''} />
+              </div>
+              <p className="text-sm text-gray-600">{c.location}</p>
+              <p className="text-sm">
+                {claimed
+                  ? <span className="text-green-600">Reward claimed</span>
+                  : <span className="text-amber-600">Claim your reward</span>
+                }
+              </p>
+            </button>
+          );
+        })}
+
+        {tab === 'completed' && completedCampaigns.length === 0 && (
+          <p className="text-center text-gray-500 mt-8">No completed campaigns yet.</p>
+        )}
       </Page.Main>
     </>
   );
