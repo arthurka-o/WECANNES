@@ -6,13 +6,19 @@ import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
-import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Button, Chip, LiveFeedback, Tabs, TabItem, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Compass } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
+import { Compass as CompassSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
+import { User } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
+import { User as UserSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { createPublicClient, decodeAbiParameters, encodeFunctionData, http } from 'viem';
 import { worldchain } from 'viem/chains';
+
+// --- QR Scanner ---
 
 function QrScanner({
   campaignId,
@@ -35,7 +41,6 @@ function QrScanner({
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (text) => {
-          // Expected format: civic:campaignId:token
           const parts = text.split(':');
           if (parts.length !== 3 || parts[0] !== 'civic') {
             await scanner.stop();
@@ -51,7 +56,6 @@ function QrScanner({
             return;
           }
 
-          // Validate token with backend
           const res = await fetch('/api/checkin-token', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -66,7 +70,7 @@ function QrScanner({
             onError('Invalid or expired QR code');
           }
         },
-        () => {}, // ignore scan failures (no QR in frame)
+        () => {},
       )
       .then(() => setScanning(true))
       .catch(() => onError('Could not access camera'));
@@ -90,6 +94,8 @@ function QrScanner({
     </div>
   );
 }
+
+// --- World ID Check-In ---
 
 const client = createPublicClient({
   chain: worldchain,
@@ -115,7 +121,6 @@ function WorldIdCheckIn({
     try {
       const action = 'checkin';
 
-      // Get RP signature
       const rpRes = await fetch('/api/rp-signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -132,7 +137,6 @@ function WorldIdCheckIn({
         signature: rpSig.sig,
       };
 
-      // IDKit request
       const request = await IDKit.request({
         app_id: process.env.NEXT_PUBLIC_APP_ID as `app_${string}`,
         action,
@@ -147,7 +151,6 @@ function WorldIdCheckIn({
         return;
       }
 
-      // Verify on backend (v4 API + SQLite)
       const verifyRes = await fetch('/api/verify-proof', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -161,7 +164,6 @@ function WorldIdCheckIn({
         return;
       }
 
-      // Submit v3 proof on-chain via MiniKit (free tx for verified humans)
       if (data.v3Proof) {
         const { merkle_root, nullifier, proof } = data.v3Proof;
         const [unpackedProof] = decodeAbiParameters(
@@ -228,9 +230,139 @@ function WorldIdCheckIn({
   );
 }
 
+// --- Profile View ---
+
+function ProfileView({
+  campaigns,
+  goals,
+  checkedInCampaigns,
+  claimedCampaigns,
+  rewards,
+  walletAddress,
+}: {
+  campaigns: Campaign[];
+  goals: Goal[];
+  checkedInCampaigns: number[];
+  claimedCampaigns: number[];
+  rewards: RewardSummary[];
+  walletAddress?: string;
+}) {
+  const myCampaigns = campaigns.filter((c) => checkedInCampaigns.includes(c.id));
+  const completedUnclaimed = myCampaigns.filter(
+    (c) => c.status === 'Completed' && !claimedCampaigns.includes(c.id),
+  );
+  const claimedList = myCampaigns.filter(
+    (c) => claimedCampaigns.includes(c.id),
+  );
+  const activeCampaigns = myCampaigns.filter((c) => c.status === 'Active');
+  const totalClaimed = claimedCampaigns.length;
+
+  return (
+    <>
+      <Page.Header className="p-0">
+        <TopBar title="My Profile" />
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-4">
+        {/* Stats */}
+        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-3 text-center">
+          <div>
+            <p className="text-xl font-bold">{checkedInCampaigns.length}</p>
+            <p className="text-xs text-gray-500">Check-ins</p>
+          </div>
+          <div>
+            <p className="text-xl font-bold">{totalClaimed}</p>
+            <p className="text-xs text-gray-500">Rewards</p>
+          </div>
+          <div>
+            <p className="text-xl font-bold">{activeCampaigns.length}</p>
+            <p className="text-xs text-gray-500">Active</p>
+          </div>
+        </div>
+
+        {/* Unclaimed rewards */}
+        {completedUnclaimed.length > 0 && (
+          <>
+            <p className="font-semibold">Unclaimed Rewards</p>
+            {completedUnclaimed.map((c) => {
+              const g = goals.find((g) => g.id === c.goal_id);
+              return (
+                <div key={c.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
+                  <div className="flex justify-between items-start">
+                    <p className="font-semibold">{c.title}</p>
+                    <Chip label={g?.category ?? ''} />
+                  </div>
+                  <p className="text-sm text-amber-700">Campaign completed — claim your reward!</p>
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {/* Active check-ins */}
+        {activeCampaigns.length > 0 && (
+          <>
+            <p className="font-semibold">Active Check-ins</p>
+            {activeCampaigns.map((c) => {
+              const g = goals.find((g) => g.id === c.goal_id);
+              return (
+                <div key={c.id} className="bg-white border rounded-xl p-4 space-y-1">
+                  <div className="flex justify-between items-start">
+                    <p className="font-semibold">{c.title}</p>
+                    <Chip label={g?.category ?? ''} />
+                  </div>
+                  <p className="text-sm text-gray-500">{c.location}</p>
+                  <p className="text-sm text-green-600">Checked in</p>
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {/* Claimed rewards history */}
+        {claimedList.length > 0 && (
+          <>
+            <p className="font-semibold">Claimed Rewards</p>
+            {claimedList.map((c) => {
+              const g = goals.find((g) => g.id === c.goal_id);
+              return (
+                <div key={c.id} className="bg-white border rounded-xl p-4 space-y-1">
+                  <div className="flex justify-between items-start">
+                    <p className="font-semibold">{c.title}</p>
+                    <Chip label={g?.category ?? ''} />
+                  </div>
+                  <p className="text-sm text-green-600">Reward claimed</p>
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {/* Empty state */}
+        {myCampaigns.length === 0 && (
+          <div className="text-center mt-8">
+            <p className="text-gray-500">No activity yet.</p>
+            <p className="text-sm text-gray-400 mt-1">Check in to a campaign to get started!</p>
+          </div>
+        )}
+
+        {/* Wallet address */}
+        {walletAddress && (
+          <div className="mt-4 bg-gray-50 rounded-lg p-3">
+            <p className="text-xs text-gray-400">Wallet</p>
+            <p className="text-xs font-mono text-gray-600 truncate">{walletAddress}</p>
+          </div>
+        )}
+      </Page.Main>
+    </>
+  );
+}
+
+// --- Main Page ---
+
 export default function VolunteerPage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const [mainTab, setMainTab] = useState('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [step, setStep] = useState<'browse' | 'scan' | 'verify' | 'done'>('browse');
   const [showRewards, setShowRewards] = useState(false);
@@ -245,13 +377,11 @@ export default function VolunteerPage() {
 
   const walletAddress = session?.user?.walletAddress;
 
-  // Load campaigns + goals
   useEffect(() => {
     fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
     fetch('/api/goals').then((r) => r.json()).then(setGoals);
   }, [step, claiming]);
 
-  // Load check-in status + claim status
   useEffect(() => {
     if (walletAddress) {
       fetch('/api/checkin-status', {
@@ -272,12 +402,10 @@ export default function VolunteerPage() {
     }
   }, [walletAddress, step, claiming]);
 
-  // Load rewards
   useEffect(() => {
     fetch('/api/rewards').then((r) => r.json()).then((data) => setRewards(data.rewards));
   }, [claiming]);
 
-  // Load claimed reward for selected campaign
   useEffect(() => {
     if (walletAddress && selectedCampaign !== null) {
       fetch('/api/rewards', {
@@ -314,7 +442,36 @@ export default function VolunteerPage() {
     setClaiming(false);
   };
 
-  // Reward pool overlay
+  // --- Bottom Tab Bar (shown on list views, hidden on detail views) ---
+  const showBottomTabs = selectedCampaign === null && !showRewards;
+
+  const bottomTabs = (
+    <Page.Footer className="border-t bg-white pb-3">
+      <Tabs value={mainTab} onValueChange={setMainTab}>
+        <TabItem value="campaigns" icon={<Compass />} altIcon={<CompassSolid />} label="Campaigns" />
+        <TabItem value="profile" icon={<User />} altIcon={<UserSolid />} label="Profile" />
+      </Tabs>
+    </Page.Footer>
+  );
+
+  // --- Profile Tab ---
+  if (mainTab === 'profile') {
+    return (
+      <Page>
+        <ProfileView
+          campaigns={campaigns}
+          goals={goals}
+          checkedInCampaigns={checkedInCampaigns}
+          claimedCampaigns={claimedCampaigns}
+          rewards={rewards}
+          walletAddress={walletAddress}
+        />
+        {bottomTabs}
+      </Page>
+    );
+  }
+
+  // --- Reward pool overlay ---
   if (showRewards) {
     return (
       <>
@@ -350,7 +507,7 @@ export default function VolunteerPage() {
     );
   }
 
-  // Completed campaign detail — claim reward
+  // --- Completed campaign detail — claim reward ---
   if (campaign && goal && campaign.status === 'Completed') {
     return (
       <>
@@ -416,7 +573,7 @@ export default function VolunteerPage() {
     );
   }
 
-  // Active campaign detail + check-in flow
+  // --- Active campaign detail + check-in flow ---
   if (campaign && goal) {
     const spotsLeft = campaign.max_volunteers - campaign.volunteer_count;
 
@@ -457,7 +614,7 @@ export default function VolunteerPage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-green-800">Checked in!</p>
               <p className="text-sm text-green-600 mt-1">
-                You'll receive civic rewards when the campaign completes.
+                You&apos;ll receive civic rewards when the campaign completes.
               </p>
             </div>
           )}
@@ -497,7 +654,7 @@ export default function VolunteerPage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-green-800">Checked in!</p>
               <p className="text-sm text-green-600 mt-1">
-                You'll receive civic rewards when the campaign completes.
+                You&apos;ll receive civic rewards when the campaign completes.
               </p>
             </div>
           )}
@@ -506,9 +663,9 @@ export default function VolunteerPage() {
     );
   }
 
-  // Campaign list with tabs
+  // --- Campaign list with tabs ---
   return (
-    <>
+    <Page>
       <Page.Header className="p-0">
         <TopBar
           title="Campaigns"
@@ -597,6 +754,7 @@ export default function VolunteerPage() {
           <p className="text-center text-gray-500 mt-8">No completed campaigns yet.</p>
         )}
       </Page.Main>
-    </>
+      {showBottomTabs && bottomTabs}
+    </Page>
   );
 }
