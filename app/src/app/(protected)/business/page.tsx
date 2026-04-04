@@ -1,10 +1,34 @@
 'use client';
 
+import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
 import type { Campaign, Goal } from '@/lib/db';
+import { MiniKit } from '@worldcoin/minikit-js';
+import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { createPublicClient, encodeFunctionData, http, parseUnits } from 'viem';
+import { worldchain } from 'viem/chains';
+
+const EURC_ADDRESS = '0x1C60ba0A0eD1019e8Eb035E6daF4155A5cE2380B';
+const EURC_ABI = [
+  {
+    type: 'function',
+    name: 'approve',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+] as const;
+
+const client = createPublicClient({
+  chain: worldchain,
+  transport: http('https://worldchain-mainnet.g.alchemy.com/public'),
+});
 
 export default function BusinessPage() {
   const router = useRouter();
@@ -30,6 +54,8 @@ export default function BusinessPage() {
     }
   }, [selectedCampaign]);
 
+  const { poll } = useUserOperationReceipt({ client });
+
   // TODO: filter by actual business identity. Hardcoded for demo.
   const businessName = "Pierre's Restaurant";
   const openCampaigns = campaigns.filter((c) => c.status === 'Open');
@@ -38,8 +64,35 @@ export default function BusinessPage() {
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const handleFund = async (campaignId: number) => {
-    // TODO: in production this calls the smart contract's fundCampaign()
-    // For now, just update status in SQLite
+    const c = campaigns.find((c) => c.id === campaignId);
+    if (!c) return;
+    const amount = parseUnits(String(c.funding_required), 6); // EURC has 6 decimals
+
+    // Approve EURC + fund campaign in one MiniKit batch
+    const result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [
+        {
+          to: EURC_ADDRESS,
+          data: encodeFunctionData({
+            abi: EURC_ABI,
+            functionName: 'approve',
+            args: [CAMPAIGN_ESCROW_ADDRESS, amount],
+          }),
+        },
+        {
+          to: CAMPAIGN_ESCROW_ADDRESS,
+          data: encodeFunctionData({
+            abi: CAMPAIGN_ESCROW_ABI,
+            functionName: 'fundCampaign',
+            args: [BigInt(campaignId)],
+          }),
+        },
+      ],
+    });
+    await poll(result.data.userOpHash);
+
+    // Update SQLite to keep in sync
     await fetch('/api/campaigns/fund', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,7 +103,21 @@ export default function BusinessPage() {
   };
 
   const handleApprove = async (campaignId: number) => {
-    // TODO: in production this calls the smart contract's approveRelease()
+    const result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [
+        {
+          to: CAMPAIGN_ESCROW_ADDRESS,
+          data: encodeFunctionData({
+            abi: CAMPAIGN_ESCROW_ABI,
+            functionName: 'approveRelease',
+            args: [BigInt(campaignId)],
+          }),
+        },
+      ],
+    });
+    await poll(result.data.userOpHash);
+
     await fetch('/api/campaigns/approve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,7 +128,21 @@ export default function BusinessPage() {
   };
 
   const handleReject = async (campaignId: number) => {
-    // TODO: in production this calls the smart contract's rejectCompletion()
+    const result = await MiniKit.sendTransaction({
+      chainId: 480,
+      transactions: [
+        {
+          to: CAMPAIGN_ESCROW_ADDRESS,
+          data: encodeFunctionData({
+            abi: CAMPAIGN_ESCROW_ABI,
+            functionName: 'rejectCompletion',
+            args: [BigInt(campaignId)],
+          }),
+        },
+      ],
+    });
+    await poll(result.data.userOpHash);
+
     await fetch('/api/campaigns/reject', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
