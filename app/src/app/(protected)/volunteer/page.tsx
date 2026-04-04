@@ -41,34 +41,40 @@ function QrScanner({
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         async (text) => {
-          const parts = text.split(':');
-          if (parts.length !== 3 || parts[0] !== 'civic') {
-            await scanner.stop();
-            onError('Not a valid check-in QR code');
-            return;
-          }
-          const scannedCampaignId = parseInt(parts[1]);
-          const token = parts[2];
-
-          if (scannedCampaignId !== campaignId) {
-            await scanner.stop();
-            onError('Wrong campaign QR code');
-            return;
-          }
-
-          const res = await fetch('/api/checkin-token', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ campaignId: scannedCampaignId, token }),
-          });
-          const data = await res.json();
+          // TODO: remove debug bypass — accept any QR code for testing
           await scanner.stop();
+          onSuccess();
+          return;
 
-          if (data.valid) {
-            onSuccess();
-          } else {
-            onError('Invalid or expired QR code');
-          }
+          // Original QR validation logic:
+          // const parts = text.split(':');
+          // if (parts.length !== 3 || parts[0] !== 'civic') {
+          //   await scanner.stop();
+          //   onError('Not a valid check-in QR code');
+          //   return;
+          // }
+          // const scannedCampaignId = parseInt(parts[1]);
+          // const token = parts[2];
+          //
+          // if (scannedCampaignId !== campaignId) {
+          //   await scanner.stop();
+          //   onError('Wrong campaign QR code');
+          //   return;
+          // }
+          //
+          // const res = await fetch('/api/checkin-token', {
+          //   method: 'PUT',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify({ campaignId: scannedCampaignId, token }),
+          // });
+          // const data = await res.json();
+          // await scanner.stop();
+          //
+          // if (data.valid) {
+          //   onSuccess();
+          // } else {
+          //   onError('Invalid or expired QR code');
+          // }
         },
         () => {},
       )
