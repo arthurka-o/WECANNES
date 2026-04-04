@@ -26,16 +26,24 @@ const ROLES = [
     id: 'volunteer',
     label: 'Volunteer',
     description: 'Join campaigns, check in at events, earn civic rewards.',
+    fields: [],
   },
   {
     id: 'ngo',
     label: 'NGO',
     description: 'Create campaigns, organize events, submit results.',
+    fields: [
+      { key: 'name', label: 'Organization name', placeholder: 'e.g. OceanCare' },
+      { key: 'email', label: 'Contact email', placeholder: 'e.g. contact@oceancare.org' },
+    ],
   },
   {
     id: 'business',
     label: 'Business',
     description: 'Sponsor campaigns with EURC, review completions.',
+    fields: [
+      { key: 'name', label: 'Company name', placeholder: "e.g. Pierre's Restaurant" },
+    ],
   },
 ];
 
@@ -46,7 +54,10 @@ export default function Home() {
 
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
-  const [showRolePicker, setShowRolePicker] = useState(false);
+  const [view, setView] = useState<'slides' | 'roles' | 'details'>('slides');
+  const [selectedRole, setSelectedRole] = useState<typeof ROLES[number] | null>(null);
+  const [formData, setFormData] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   // Check if user already has a role
   useEffect(() => {
@@ -62,14 +73,26 @@ export default function Home() {
       });
   }, [walletAddress, router]);
 
-  const handleSelectRole = async (role: string) => {
+  const handleSelectRole = (role: typeof ROLES[number]) => {
+    if (role.fields.length === 0) {
+      // No extra info needed, save and go
+      submitRole(role.id, {});
+    } else {
+      setSelectedRole(role);
+      setFormData({});
+      setView('details');
+    }
+  };
+
+  const submitRole = async (roleId: string, data: Record<string, string>) => {
     if (!walletAddress) return;
+    setSubmitting(true);
     await fetch('/api/user-role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ walletAddress, role }),
+      body: JSON.stringify({ walletAddress, role: roleId, ...data }),
     });
-    router.push(`/${role}`);
+    router.push(`/${roleId}`);
   };
 
   if (loading) {
@@ -82,14 +105,55 @@ export default function Home() {
     );
   }
 
+  // Details form (NGO/Business extra fields)
+  if (view === 'details' && selectedRole) {
+    const allFilled = selectedRole.fields.every((f) => formData[f.key]?.trim());
+
+    return (
+      <>
+        <Page.Header className="p-0">
+          <TopBar
+            title={selectedRole.label}
+            startAdornment={<button onClick={() => setView('roles')}>← Back</button>}
+          />
+        </Page.Header>
+        <Page.Main className="flex flex-col gap-4">
+          <p className="text-sm text-gray-500">Tell us a bit about your organization.</p>
+          {selectedRole.fields.map((field) => (
+            <div key={field.key}>
+              <label className="text-sm font-semibold block mb-1">{field.label}</label>
+              <input
+                className="w-full border rounded-lg p-3"
+                placeholder={field.placeholder}
+                value={formData[field.key] ?? ''}
+                onChange={(e) => setFormData((d) => ({ ...d, [field.key]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </Page.Main>
+        <Page.Footer>
+          <Button
+            size="lg"
+            variant="primary"
+            className="w-full"
+            disabled={!allFilled || submitting}
+            onClick={() => submitRole(selectedRole.id, formData)}
+          >
+            {submitting ? 'Setting up...' : 'Continue'}
+          </Button>
+        </Page.Footer>
+      </>
+    );
+  }
+
   // Role picker
-  if (showRolePicker) {
+  if (view === 'roles') {
     return (
       <>
         <Page.Header className="p-0">
           <TopBar
             title="Choose your role"
-            startAdornment={<button onClick={() => setShowRolePicker(false)}>← Back</button>}
+            startAdornment={<button onClick={() => setView('slides')}>← Back</button>}
           />
         </Page.Header>
         <Page.Main className="flex flex-col gap-3">
@@ -97,7 +161,7 @@ export default function Home() {
           {ROLES.map((role) => (
             <button
               key={role.id}
-              onClick={() => handleSelectRole(role.id)}
+              onClick={() => handleSelectRole(role)}
               className="text-left bg-white border rounded-xl p-4 space-y-1"
             >
               <p className="font-semibold text-lg">{role.label}</p>
@@ -138,7 +202,7 @@ export default function Home() {
           className="w-full"
           onClick={() => {
             if (isLast) {
-              setShowRolePicker(true);
+              setView('roles');
             } else {
               setSlide((s) => s + 1);
             }
@@ -148,7 +212,7 @@ export default function Home() {
         </Button>
         {!isLast && (
           <button
-            onClick={() => setShowRolePicker(true)}
+            onClick={() => setView('roles')}
             className="w-full text-center text-sm text-gray-400 mt-3"
           >
             Skip

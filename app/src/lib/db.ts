@@ -10,6 +10,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     wallet_address TEXT PRIMARY KEY,
     role TEXT NOT NULL,
+    name TEXT,
+    email TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -75,15 +77,26 @@ db.exec(`
 
 // --- Users ---
 
+export interface UserProfile {
+  wallet_address: string;
+  role: string;
+  name: string | null;
+  email: string | null;
+}
+
+export function getUserProfile(walletAddress: string): UserProfile | null {
+  return (db.prepare('SELECT * FROM users WHERE wallet_address = ?').get(walletAddress) as UserProfile) ?? null;
+}
+
 export function getUserRole(walletAddress: string): string | null {
   const row = db.prepare('SELECT role FROM users WHERE wallet_address = ?').get(walletAddress) as { role: string } | undefined;
   return row?.role ?? null;
 }
 
-export function setUserRole(walletAddress: string, role: string): void {
+export function setUserRole(walletAddress: string, role: string, name?: string, email?: string): void {
   db.prepare(
-    'INSERT INTO users (wallet_address, role) VALUES (?, ?) ON CONFLICT(wallet_address) DO UPDATE SET role = ?'
-  ).run(walletAddress, role, role);
+    'INSERT INTO users (wallet_address, role, name, email) VALUES (?, ?, ?, ?) ON CONFLICT(wallet_address) DO UPDATE SET role = ?, name = ?, email = ?'
+  ).run(walletAddress, role, name ?? null, email ?? null, role, name ?? null, email ?? null);
 }
 
 // --- Check-in tokens ---

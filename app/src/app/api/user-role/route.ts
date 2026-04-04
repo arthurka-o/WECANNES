@@ -1,16 +1,16 @@
-import { getUserRole, setUserRole } from '@/lib/db';
+import { getUserProfile, setUserRole } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   const walletAddress = req.nextUrl.searchParams.get('wallet');
   if (!walletAddress) return NextResponse.json({ error: 'Missing wallet' }, { status: 400 });
-  const role = getUserRole(walletAddress);
-  return NextResponse.json({ role });
+  const profile = getUserProfile(walletAddress);
+  return NextResponse.json({ role: profile?.role ?? null, name: profile?.name ?? null, email: profile?.email ?? null });
 }
 
 export async function POST(req: NextRequest) {
-  const { walletAddress, role } = await req.json();
+  const { walletAddress, role, name, email } = await req.json();
   if (!walletAddress || !role) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
-  setUserRole(walletAddress, role);
+  setUserRole(walletAddress, role, name, email);
   return NextResponse.json({ success: true });
 }

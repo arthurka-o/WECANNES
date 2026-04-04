@@ -7,6 +7,7 @@ import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
@@ -20,10 +21,12 @@ const client = createPublicClient({
 
 function NewCampaignForm({
   goals,
+  ngoName,
   onCreated,
   onBack,
 }: {
   goals: Goal[];
+  ngoName: string;
   onCreated: () => void;
   onBack: () => void;
 }) {
@@ -52,7 +55,7 @@ function NewCampaignForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          ngo: 'OceanCare', // hardcoded for demo
+          ngo: ngoName || 'OceanCare',
           funding_required: Number(form.funding_required),
           min_volunteers: Number(form.min_volunteers),
           max_volunteers: Number(form.max_volunteers),
@@ -154,7 +157,10 @@ function NewCampaignForm({
 
 export default function NgoPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { poll } = useUserOperationReceipt({ client });
+  const [ngoName, setNgoName] = useState('');
+  const [ngoEmail, setNgoEmail] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -170,8 +176,20 @@ export default function NgoPage() {
     fetch('/api/goals').then((r) => r.json()).then(setGoals);
   }, [refreshKey]);
 
-  // TODO: filter by actual NGO identity. Hardcoded for demo.
-  const ngoCampaigns = campaigns.filter((c) => c.ngo === 'OceanCare');
+  // Load NGO profile
+  useEffect(() => {
+    const wallet = session?.user?.walletAddress;
+    if (wallet) {
+      fetch(`/api/user-role?wallet=${wallet}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.name) setNgoName(data.name);
+          if (data.email) setNgoEmail(data.email);
+        });
+    }
+  }, [session]);
+
+  const ngoCampaigns = campaigns.filter((c) => c.ngo === ngoName || c.ngo === 'OceanCare');
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const [qrValue, setQrValue] = useState<string | null>(null);
@@ -202,7 +220,7 @@ export default function NgoPage() {
 
   // New campaign form
   if (showNewCampaign) {
-    return <NewCampaignForm goals={goals} onCreated={() => { setShowNewCampaign(false); setRefreshKey((k) => k + 1); }} onBack={() => setShowNewCampaign(false)} />;
+    return <NewCampaignForm goals={goals} ngoName={ngoName} onCreated={() => { setShowNewCampaign(false); setRefreshKey((k) => k + 1); }} onBack={() => setShowNewCampaign(false)} />;
   }
 
   if (showQR && campaign) {
@@ -454,7 +472,7 @@ export default function NgoPage() {
     <>
       <Page.Header className="p-0">
         <TopBar
-          title="OceanCare"
+          title={ngoName || 'NGO'}
           endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
         />
       </Page.Header>

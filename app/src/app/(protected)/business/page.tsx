@@ -7,6 +7,7 @@ import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPublicClient, encodeFunctionData, http, parseUnits } from 'viem';
@@ -33,6 +34,8 @@ const client = createPublicClient({
 
 export default function BusinessPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [businessName, setBusinessName] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [tab, setTab] = useState<'browse' | 'review' | 'sponsored'>('browse');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -46,6 +49,15 @@ export default function BusinessPage() {
   }, [refreshKey]);
 
   useEffect(() => {
+    const wallet = session?.user?.walletAddress;
+    if (wallet) {
+      fetch(`/api/user-role?wallet=${wallet}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.name) setBusinessName(data.name); });
+    }
+  }, [session]);
+
+  useEffect(() => {
     if (selectedCampaign !== null) {
       fetch(`/api/campaigns/photos?campaignId=${selectedCampaign}`)
         .then((r) => r.json())
@@ -57,11 +69,10 @@ export default function BusinessPage() {
 
   const { poll } = useUserOperationReceipt({ client });
 
-  // TODO: filter by actual business identity. Hardcoded for demo.
-  const businessName = "Pierre's Restaurant";
   const openCampaigns = campaigns.filter((c) => c.status === 'Open');
-  const pendingReview = campaigns.filter((c) => c.status === 'PendingReview' && c.sponsor === businessName);
-  const sponsored = campaigns.filter((c) => c.sponsor === businessName && c.status !== 'Open');
+  const isMySponsor = (s: string | null) => s === businessName || (!businessName && s === "Pierre's Restaurant");
+  const pendingReview = campaigns.filter((c) => c.status === 'PendingReview' && isMySponsor(c.sponsor));
+  const sponsored = campaigns.filter((c) => isMySponsor(c.sponsor) && c.status !== 'Open');
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const handleFund = async (campaignId: number) => {
@@ -313,7 +324,7 @@ export default function BusinessPage() {
     <>
       <Page.Header className="p-0">
         <TopBar
-          title="Business"
+          title={businessName || 'Business'}
           endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
         />
       </Page.Header>
