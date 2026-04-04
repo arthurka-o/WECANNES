@@ -9,6 +9,7 @@ import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, LiveFeedback, Tabs, TabItem, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Compass } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { Compass as CompassSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
+import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { User } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { User as UserSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -245,7 +246,6 @@ function ProfileView({
   claimedCampaigns,
   rewards,
   walletAddress,
-  onChangeRole,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
@@ -254,6 +254,7 @@ function ProfileView({
   rewards: RewardSummary[];
   walletAddress?: string;
 }) {
+  const router = useRouter();
   const myCampaigns = campaigns.filter((c) => checkedInCampaigns.includes(c.id));
   const completedUnclaimed = myCampaigns.filter(
     (c) => c.status === 'Completed' && !claimedCampaigns.includes(c.id),
@@ -267,7 +268,10 @@ function ProfileView({
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar title="My Profile" />
+        <TopBar
+          title="My Profile"
+          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
+        />
       </Page.Header>
       <Page.Main className="flex flex-col gap-4">
         {/* Stats */}

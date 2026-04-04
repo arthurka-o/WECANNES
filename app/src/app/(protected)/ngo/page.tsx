@@ -6,6 +6,7 @@ import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
@@ -452,7 +453,10 @@ export default function NgoPage() {
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar title="OceanCare" />
+        <TopBar
+          title="OceanCare"
+          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
+        />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
         <div className="flex justify-between items-center">

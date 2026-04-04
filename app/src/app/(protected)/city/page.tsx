@@ -3,6 +3,7 @@
 import { Page } from '@/components/PageLayout';
 import type { Campaign, Goal, RewardSummary } from '@/lib/db';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -216,6 +217,7 @@ export default function CityPage() {
       <Page.Header className="p-0">
         <TopBar
           title="City Dashboard"
+          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">

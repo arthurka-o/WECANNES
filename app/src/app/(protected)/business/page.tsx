@@ -6,6 +6,7 @@ import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createPublicClient, encodeFunctionData, http, parseUnits } from 'viem';
@@ -313,6 +314,7 @@ export default function BusinessPage() {
       <Page.Header className="p-0">
         <TopBar
           title="Business"
+          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
