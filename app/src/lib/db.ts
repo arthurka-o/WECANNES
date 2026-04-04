@@ -7,6 +7,12 @@ const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    wallet_address TEXT PRIMARY KEY,
+    role TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS checkin_tokens (
     campaign_id INTEGER PRIMARY KEY,
     token TEXT NOT NULL
@@ -66,6 +72,19 @@ db.exec(`
     claimed_at TEXT
   );
 `);
+
+// --- Users ---
+
+export function getUserRole(walletAddress: string): string | null {
+  const row = db.prepare('SELECT role FROM users WHERE wallet_address = ?').get(walletAddress) as { role: string } | undefined;
+  return row?.role ?? null;
+}
+
+export function setUserRole(walletAddress: string, role: string): void {
+  db.prepare(
+    'INSERT INTO users (wallet_address, role) VALUES (?, ?) ON CONFLICT(wallet_address) DO UPDATE SET role = ?'
+  ).run(walletAddress, role, role);
+}
 
 // --- Check-in tokens ---
 

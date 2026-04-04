@@ -245,6 +245,7 @@ function ProfileView({
   claimedCampaigns,
   rewards,
   walletAddress,
+  onChangeRole,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
@@ -358,6 +359,7 @@ function ProfileView({
             <p className="text-xs font-mono text-gray-600 truncate">{walletAddress}</p>
           </div>
         )}
+
       </Page.Main>
     </>
   );
