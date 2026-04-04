@@ -677,9 +677,6 @@ export default function VolunteerPage() {
       <Page.Header className="p-0">
         <TopBar
           title="Campaigns"
-          startAdornment={
-            <button onClick={() => router.push('/home')}>← Back</button>
-          }
           endAdornment={
             <button onClick={() => setShowRewards(true)} className="relative">
               <span className="text-xl">🎁</span>

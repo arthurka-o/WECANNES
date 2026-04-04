@@ -452,12 +452,7 @@ export default function NgoPage() {
   return (
     <>
       <Page.Header className="p-0">
-        <TopBar
-          title="OceanCare"
-          startAdornment={
-            <button onClick={() => router.push('/home')}>← Back</button>
-          }
-        />
+        <TopBar title="OceanCare" />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
         <div className="flex justify-between items-center">

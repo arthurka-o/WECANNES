@@ -216,7 +216,6 @@ export default function CityPage() {
       <Page.Header className="p-0">
         <TopBar
           title="City Dashboard"
-          startAdornment={<button onClick={() => router.push('/home')}>← Back</button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">

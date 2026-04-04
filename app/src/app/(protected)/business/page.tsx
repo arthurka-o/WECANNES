@@ -313,7 +313,6 @@ export default function BusinessPage() {
       <Page.Header className="p-0">
         <TopBar
           title="Business"
-          startAdornment={<button onClick={() => router.push('/home')}>← Back</button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
