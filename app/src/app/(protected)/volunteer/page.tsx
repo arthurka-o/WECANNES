@@ -1,8 +1,7 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import { campaigns, goals } from '@/lib/mock-data';
-import type { CivicReward } from '@/lib/db';
+import type { Campaign, CivicReward, Goal } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -193,6 +192,8 @@ export default function VolunteerPage() {
   const [step, setStep] = useState<'browse' | 'scan' | 'verify' | 'done'>('browse');
   const [showRewards, setShowRewards] = useState(false);
   const [tab, setTab] = useState<'active' | 'completed'>('active');
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
   const [claimedCampaigns, setClaimedCampaigns] = useState<number[]>([]);
   const [rewards, setRewards] = useState<CivicReward[]>([]);
@@ -200,6 +201,12 @@ export default function VolunteerPage() {
   const [claiming, setClaiming] = useState(false);
 
   const walletAddress = session?.user?.walletAddress;
+
+  // Load campaigns + goals
+  useEffect(() => {
+    fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
+    fetch('/api/goals').then((r) => r.json()).then(setGoals);
+  }, [step, claiming]);
 
   // Load check-in status + claim status
   useEffect(() => {
@@ -246,8 +253,8 @@ export default function VolunteerPage() {
   const completedCampaigns = campaigns.filter(
     (c) => c.status === 'Completed' && checkedInCampaigns.includes(c.id)
   );
-  const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
-  const goal = campaign ? goals.find((g) => g.id === campaign.goalId) : null;
+  const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
+  const goal = campaign ? goals.find((g) => g.id === campaign.goal_id) : null;
   const isAlreadyCheckedIn = campaign ? checkedInCampaigns.includes(campaign.id) : false;
   const hasClaimedReward = campaign ? claimedCampaigns.includes(campaign.id) : false;
 
@@ -361,7 +368,7 @@ export default function VolunteerPage() {
 
   // Active campaign detail + check-in flow
   if (campaign && goal) {
-    const spotsLeft = campaign.maxVolunteers - campaign.volunteerCount;
+    const spotsLeft = campaign.max_volunteers - campaign.volunteer_count;
 
     return (
       <>
@@ -389,10 +396,10 @@ export default function VolunteerPage() {
             </p>
             <p className="text-sm">
               <span className="font-semibold">Volunteers:</span>{' '}
-              {campaign.volunteerCount}/{campaign.maxVolunteers}
+              {campaign.volunteer_count}/{campaign.max_volunteers}
             </p>
             <p className="text-sm">
-              <span className="font-semibold">Deadline:</span> {campaign.deadline}
+              <span className="font-semibold">Deadline:</span> {campaign.event_deadline}
             </p>
           </div>
 
@@ -485,8 +492,8 @@ export default function VolunteerPage() {
         </div>
 
         {tab === 'active' && activeCampaigns.map((c) => {
-          const g = goals.find((g) => g.id === c.goalId);
-          const spotsLeft = c.maxVolunteers - c.volunteerCount;
+          const g = goals.find((g) => g.id === c.goal_id);
+          const spotsLeft = c.max_volunteers - c.volunteer_count;
           const checkedIn = checkedInCampaigns.includes(c.id);
           return (
             <button
@@ -500,7 +507,7 @@ export default function VolunteerPage() {
               </div>
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>{c.volunteerCount}/{c.maxVolunteers} volunteers</span>
+                <span>{c.volunteer_count}/{c.max_volunteers} volunteers</span>
                 {checkedIn && <span className="text-green-600">Checked in</span>}
                 {!checkedIn && spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
               </div>
@@ -513,7 +520,7 @@ export default function VolunteerPage() {
         )}
 
         {tab === 'completed' && completedCampaigns.map((c) => {
-          const g = goals.find((g) => g.id === c.goalId);
+          const g = goals.find((g) => g.id === c.goal_id);
           const claimed = claimedCampaigns.includes(c.id);
           return (
             <button

@@ -24,6 +24,36 @@ db.exec(`
     nullifier TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS goals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  );
+
+  CREATE TABLE IF NOT EXISTS campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    goal_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    ngo TEXT NOT NULL,
+    sponsor TEXT,
+    funding_required INTEGER NOT NULL,
+    min_volunteers INTEGER NOT NULL,
+    max_volunteers INTEGER NOT NULL,
+    sponsorship_deadline TEXT NOT NULL,
+    event_deadline TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Open',
+    location TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS campaign_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaign_id INTEGER NOT NULL,
+    file_path TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS civic_rewards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -155,17 +185,105 @@ export function getClaimForCampaign(nullifier: string, campaignId: number): Civi
   return row ?? null;
 }
 
-// --- Seed rewards (call once) ---
+// --- Goals ---
 
-export function seedRewardsIfEmpty(): void {
-  const count = db.prepare('SELECT COUNT(*) as c FROM civic_rewards').get() as { c: number };
-  if (count.c === 0) {
-    const insert = db.prepare('INSERT INTO civic_rewards (name, total, remaining, file_path) VALUES (?, ?, ?, ?)');
-    insert.run('Museum Pass', 100, 100, null);
-    insert.run('Pool Access', 50, 50, null);
-    insert.run('Theater Ticket', 30, 30, null);
-    insert.run('Transit Pass', 80, 80, null);
-  }
+export interface Goal {
+  id: number;
+  title: string;
+  category: string;
+  description: string;
+  active: number;
 }
 
-seedRewardsIfEmpty();
+export function getGoals(): Goal[] {
+  return db.prepare('SELECT * FROM goals WHERE active = 1').all() as Goal[];
+}
+
+export function getGoal(id: number): Goal | null {
+  return (db.prepare('SELECT * FROM goals WHERE id = ?').get(id) as Goal) ?? null;
+}
+
+// --- Campaigns ---
+
+export interface Campaign {
+  id: number;
+  goal_id: number;
+  title: string;
+  description: string;
+  ngo: string;
+  sponsor: string | null;
+  funding_required: number;
+  min_volunteers: number;
+  max_volunteers: number;
+  sponsorship_deadline: string;
+  event_deadline: string;
+  status: string;
+  location: string;
+  volunteer_count: number;
+}
+
+export function getCampaigns(): Campaign[] {
+  const rows = db.prepare(`
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    FROM campaigns c
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
+      ON ch.campaign_id = c.id
+  `).all() as Campaign[];
+  return rows;
+}
+
+export function getCampaign(id: number): Campaign | null {
+  const row = db.prepare(`
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    FROM campaigns c
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
+      ON ch.campaign_id = c.id
+    WHERE c.id = ?
+  `).get(id) as Campaign | undefined;
+  return row ?? null;
+}
+
+export function getCampaignsByStatus(status: string): Campaign[] {
+  const rows = db.prepare(`
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    FROM campaigns c
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
+      ON ch.campaign_id = c.id
+    WHERE c.status = ?
+  `).all(status) as Campaign[];
+  return rows;
+}
+
+export function getCampaignPhotos(campaignId: number): string[] {
+  const rows = db.prepare('SELECT file_path FROM campaign_photos WHERE campaign_id = ?').all(campaignId) as { file_path: string }[];
+  return rows.map((r) => r.file_path);
+}
+
+// --- Seed ---
+
+function seed(): void {
+  const goalCount = db.prepare('SELECT COUNT(*) as c FROM goals').get() as { c: number };
+  if (goalCount.c > 0) return;
+
+  const insertGoal = db.prepare('INSERT INTO goals (title, category, description) VALUES (?, ?, ?)');
+  insertGoal.run('Beach Cleanup — Summer 2026', 'Environment', 'Clean up beaches before tourist season');
+  insertGoal.run('Youth Literacy Program', 'Education', 'Improve reading skills for children aged 6-12');
+  insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
+
+  const insertCampaign = db.prepare(`
+    INSERT INTO campaigns (goal_id, title, description, ngo, sponsor, funding_required, min_volunteers, max_volunteers, sponsorship_deadline, event_deadline, status, location)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  insertCampaign.run(1, 'Plage du Midi Cleanup', '2km beach cleanup before summer season. Equipment provided.', 'OceanCare', null, 500, 20, 40, '2026-05-15', '2026-06-15', 'Open', 'Plage du Midi, Cannes');
+  insertCampaign.run(1, 'Port Canto Shore Cleanup', 'Cleanup around the marina area. Gloves and bags provided.', 'OceanCare', "Pierre's Restaurant", 350, 15, 30, '2026-05-20', '2026-06-20', 'Active', 'Port Canto, Cannes');
+  insertCampaign.run(2, 'Weekend Reading Buddies', 'Pair volunteers with kids for Saturday morning reading sessions.', 'LireEnsemble', 'Librairie Cannes', 200, 8, 15, '2026-06-01', '2026-07-01', 'Completed', 'Bibliothèque Municipale, Cannes');
+  insertCampaign.run(3, 'Summer Meal Prep', 'Prepare and distribute meals to three local shelters.', 'SolidaritéCannes', null, 800, 10, 25, '2026-07-01', '2026-08-01', 'Open', 'Centre Social, Cannes');
+
+  const insertReward = db.prepare('INSERT INTO civic_rewards (name, total, remaining, file_path) VALUES (?, ?, ?, ?)');
+  insertReward.run('Museum Pass', 100, 100, null);
+  insertReward.run('Pool Access', 50, 50, null);
+  insertReward.run('Theater Ticket', 30, 30, null);
+  insertReward.run('Transit Pass', 80, 80, null);
+}
+
+seed();
