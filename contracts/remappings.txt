@@ -1,0 +1,3 @@
+forge-std/=lib/forge-std/src/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@worldcoin/world-id-contracts/=lib/world-id-contracts/src/
