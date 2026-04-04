@@ -1,8 +1,9 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import type { Campaign, CivicReward, Goal } from '@/lib/db';
+import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
+import { MiniKit } from '@worldcoin/minikit-js';
 import { Button, Chip, LiveFeedback, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useSession } from 'next-auth/react';
@@ -196,7 +197,7 @@ export default function VolunteerPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
   const [claimedCampaigns, setClaimedCampaigns] = useState<number[]>([]);
-  const [rewards, setRewards] = useState<CivicReward[]>([]);
+  const [rewards, setRewards] = useState<RewardSummary[]>([]);
   const [claimedReward, setClaimedReward] = useState<CivicReward | null>(null);
   const [claiming, setClaiming] = useState(false);
 
@@ -260,13 +261,13 @@ export default function VolunteerPage() {
 
   const totalRewardsLeft = rewards.reduce((s, r) => s + r.remaining, 0);
 
-  const handleClaimReward = async (rewardId: number) => {
+  const handleClaimReward = async (rewardName: string) => {
     if (!walletAddress || !campaign) return;
     setClaiming(true);
     await fetch('/api/rewards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ walletAddress, rewardId, campaignId: campaign.id }),
+      body: JSON.stringify({ walletAddress, rewardName, campaignId: campaign.id }),
     });
     setClaiming(false);
   };
@@ -286,7 +287,7 @@ export default function VolunteerPage() {
         <Page.Main className="flex flex-col gap-3">
           <p className="text-sm text-gray-500">Available to all volunteers — first come, first serve</p>
           {rewards.map((r) => (
-            <div key={r.id} className="bg-white border rounded-xl p-4 flex justify-between items-center">
+            <div key={r.name} className="bg-white border rounded-xl p-4 flex justify-between items-center">
               <div>
                 <p className="font-semibold">{r.name}</p>
               </div>
@@ -329,13 +330,20 @@ export default function VolunteerPage() {
               <p className="font-semibold text-green-800">Reward claimed!</p>
               <p className="text-sm text-green-600 mt-1">{claimedReward.name}</p>
               {claimedReward.file_path && (
-                <a
-                  href={claimedReward.file_path}
-                  className="text-sm text-blue-600 underline mt-2 block"
-                  download
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="w-full mt-2"
+                  onClick={async () => {
+                    const res = await fetch(claimedReward.file_path);
+                    const blob = await res.blob();
+                    const filename = claimedReward.file_path.split('/').pop() ?? 'ticket';
+                    const file = new File([blob], filename, { type: blob.type });
+                    MiniKit.share({ files: [file] });
+                  }}
                 >
-                  Download ticket
-                </a>
+                  Save ticket
+                </Button>
               )}
             </div>
           ) : (
@@ -343,8 +351,8 @@ export default function VolunteerPage() {
               <p className="font-semibold">Choose your reward</p>
               {rewards.map((r) => (
                 <button
-                  key={r.id}
-                  onClick={() => handleClaimReward(r.id)}
+                  key={r.name}
+                  onClick={() => handleClaimReward(r.name)}
                   disabled={r.remaining <= 0 || claiming}
                   className={`text-left border rounded-xl p-4 flex justify-between items-center ${
                     r.remaining <= 0 ? 'opacity-50' : 'bg-white'

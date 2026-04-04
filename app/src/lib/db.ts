@@ -59,18 +59,10 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS civic_rewards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    total INTEGER NOT NULL,
-    remaining INTEGER NOT NULL,
-    file_path TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS reward_claims (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nullifier TEXT NOT NULL,
-    reward_id INTEGER NOT NULL,
-    campaign_id INTEGER NOT NULL,
-    claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE(nullifier, campaign_id)
+    file_path TEXT NOT NULL,
+    claimed_by TEXT,
+    claimed_campaign_id INTEGER,
+    claimed_at TEXT
   );
 `);
 
@@ -133,58 +125,73 @@ export function getNullifierByWallet(walletAddress: string): string | null {
 
 // --- Civic rewards ---
 
-export interface CivicReward {
-  id: number;
+export interface RewardSummary {
   name: string;
   total: number;
   remaining: number;
-  file_path: string | null;
 }
 
-export function getRewards(): CivicReward[] {
-  return db.prepare('SELECT * FROM civic_rewards').all() as CivicReward[];
+export interface CivicReward {
+  id: number;
+  name: string;
+  file_path: string;
+  claimed_by: string | null;
+  claimed_campaign_id: number | null;
+  claimed_at: string | null;
+}
+
+export function getRewardSummaries(): RewardSummary[] {
+  return db.prepare(`
+    SELECT name, COUNT(*) as total, SUM(CASE WHEN claimed_by IS NULL THEN 1 ELSE 0 END) as remaining
+    FROM civic_rewards GROUP BY name
+  `).all() as RewardSummary[];
+}
+
+export function addRewards(name: string, filePaths: string[]): void {
+  const insert = db.prepare('INSERT INTO civic_rewards (name, file_path) VALUES (?, ?)');
+  for (const fp of filePaths) {
+    insert.run(name, fp);
+  }
 }
 
 export function claimReward(
   nullifier: string,
-  rewardId: number,
+  rewardName: string,
   campaignId: number
-): { success: boolean; error?: string } {
+): { success: boolean; error?: string; reward?: CivicReward } {
   // Check if already claimed for this campaign
   const existing = db.prepare(
-    'SELECT 1 FROM reward_claims WHERE nullifier = ? AND campaign_id = ?'
+    'SELECT 1 FROM civic_rewards WHERE claimed_by = ? AND claimed_campaign_id = ?'
   ).get(nullifier, campaignId);
   if (existing) return { success: false, error: 'Already claimed for this campaign' };
 
-  // Check reward has stock
+  // Find an unclaimed reward of this type
   const reward = db.prepare(
-    'SELECT remaining FROM civic_rewards WHERE id = ?'
-  ).get(rewardId) as { remaining: number } | undefined;
-  if (!reward || reward.remaining <= 0) return { success: false, error: 'Reward unavailable' };
+    'SELECT * FROM civic_rewards WHERE name = ? AND claimed_by IS NULL LIMIT 1'
+  ).get(rewardName) as CivicReward | undefined;
+  if (!reward) return { success: false, error: 'No rewards of this type available' };
 
-  // Decrement and record
-  db.prepare('UPDATE civic_rewards SET remaining = remaining - 1 WHERE id = ? AND remaining > 0').run(rewardId);
+  // Claim it
   db.prepare(
-    'INSERT INTO reward_claims (nullifier, reward_id, campaign_id) VALUES (?, ?, ?)'
-  ).run(nullifier, rewardId, campaignId);
+    'UPDATE civic_rewards SET claimed_by = ?, claimed_campaign_id = ?, claimed_at = datetime(\'now\') WHERE id = ?'
+  ).run(nullifier, campaignId, reward.id);
 
-  return { success: true };
+  reward.claimed_by = nullifier;
+  reward.claimed_campaign_id = campaignId;
+  return { success: true, reward };
 }
 
 export function getClaimedCampaigns(nullifier: string): number[] {
   const rows = db.prepare(
-    'SELECT campaign_id FROM reward_claims WHERE nullifier = ?'
-  ).all(nullifier) as { campaign_id: number }[];
-  return rows.map((r) => r.campaign_id);
+    'SELECT DISTINCT claimed_campaign_id FROM civic_rewards WHERE claimed_by = ?'
+  ).all(nullifier) as { claimed_campaign_id: number }[];
+  return rows.map((r) => r.claimed_campaign_id);
 }
 
 export function getClaimForCampaign(nullifier: string, campaignId: number): CivicReward | null {
-  const row = db.prepare(`
-    SELECT r.* FROM civic_rewards r
-    JOIN reward_claims c ON c.reward_id = r.id
-    WHERE c.nullifier = ? AND c.campaign_id = ?
-  `).get(nullifier, campaignId) as CivicReward | undefined;
-  return row ?? null;
+  return (db.prepare(
+    'SELECT * FROM civic_rewards WHERE claimed_by = ? AND claimed_campaign_id = ?'
+  ).get(nullifier, campaignId) as CivicReward) ?? null;
 }
 
 // --- Goals ---
@@ -199,6 +206,11 @@ export interface Goal {
 
 export function getGoals(): Goal[] {
   return db.prepare('SELECT * FROM goals WHERE active = 1').all() as Goal[];
+}
+
+export function createGoal(title: string, category: string, description: string): number {
+  const result = db.prepare('INSERT INTO goals (title, category, description) VALUES (?, ?, ?)').run(title, category, description);
+  return Number(result.lastInsertRowid);
 }
 
 export function getGoal(id: number): Goal | null {
@@ -324,12 +336,6 @@ function seed(): void {
   insertCampaign.run(1, 'Spring Coast Sweep',              'Early spring cleanup of the eastern coast.',                        'OceanCare',        'Café del Mar',        250, 10, 20, '2026-02-15', '2026-01-15', '2026-03-15', 'Expired',       'Plage du Mouré Rouge, Cannes');
   insertCampaign.run(2, 'After-School Tutoring',           'Weekly tutoring sessions for middle school students.',              'LireEnsemble',     'Fnac Cannes',         300, 12, 20, '2026-03-01', '2026-02-01', '2026-04-01', 'Expired',       'Collège Les Mûriers, Cannes');
   insertCampaign.run(1, 'Mandelieu Estuary Cleanup',       'Clean up the Siagne river estuary before nesting season.',          'OceanCare',        'Decathlon Cannes',    400, 10, 25, '2026-05-20', '2026-04-20', '2026-06-20', 'Active',        'Estuaire de la Siagne, Mandelieu');
-
-  const insertReward = db.prepare('INSERT INTO civic_rewards (name, total, remaining, file_path) VALUES (?, ?, ?, ?)');
-  insertReward.run('Museum Pass', 100, 100, null);
-  insertReward.run('Pool Access', 50, 50, null);
-  insertReward.run('Theater Ticket', 30, 30, null);
-  insertReward.run('Transit Pass', 80, 80, null);
 
   // Demo: fake volunteer checked into completed campaign (id=3) and active campaign (id=2)
   const demoNullifier = '0x2bfe4b2f1b17853598ecd565629c0fbed11d1acd6bff1d726ce8b4fad99763a3';

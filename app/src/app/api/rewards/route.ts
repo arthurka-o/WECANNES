@@ -1,22 +1,22 @@
-import { claimReward, getClaimForCampaign, getClaimedCampaigns, getNullifierByWallet, getRewards } from '@/lib/db';
+import { claimReward, getClaimForCampaign, getClaimedCampaigns, getNullifierByWallet, getRewardSummaries } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
-// GET — list all rewards + remaining counts
+// GET — reward summaries (name, total, remaining)
 export async function GET() {
-  const rewards = getRewards();
+  const rewards = getRewardSummaries();
   return NextResponse.json({ rewards });
 }
 
 // POST — claim a reward
 export async function POST(req: NextRequest) {
-  const { walletAddress, rewardId, campaignId } = await req.json();
+  const { walletAddress, rewardName, campaignId } = await req.json();
 
   const nullifier = getNullifierByWallet(walletAddress);
   if (!nullifier) {
     return NextResponse.json({ success: false, error: 'Not verified' }, { status: 400 });
   }
 
-  const result = claimReward(nullifier, rewardId, campaignId);
+  const result = claimReward(nullifier, rewardName, campaignId);
   return NextResponse.json(result, { status: result.success ? 200 : 400 });
 }
 

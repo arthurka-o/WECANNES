@@ -1,66 +1,155 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import { campaigns, civicRewards, goals } from '@/lib/mock-data';
+import type { Campaign, Goal, RewardSummary } from '@/lib/db';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+function NewGoalForm({ onCreated, onBack }: { onCreated: () => void; onBack: () => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ title: '', category: 'Environment', description: '' });
+  const set = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    await fetch('/api/goals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    setSubmitting(false);
+    onCreated();
+  };
+
+  return (
+    <>
+      <Page.Header className="p-0">
+        <TopBar title="New Goal" startAdornment={<button onClick={onBack}>← Back</button>} />
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-3">
+        <div>
+          <label className="text-sm font-semibold block mb-1">Title</label>
+          <input className="w-full border rounded-lg p-3" value={form.title} onChange={(e) => set('title', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Category</label>
+          <select className="w-full border rounded-lg p-3" value={form.category} onChange={(e) => set('category', e.target.value)}>
+            <option>Environment</option>
+            <option>Education</option>
+            <option>Social</option>
+            <option>Health</option>
+            <option>Culture</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Description</label>
+          <textarea className="w-full border rounded-lg p-3" rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
+        </div>
+        <Button size="lg" variant="primary" className="w-full" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Creating...' : 'Create Goal'}
+        </Button>
+      </Page.Main>
+    </>
+  );
+}
+
+function AddRewardForm({ onCreated, onBack }: { onCreated: () => void; onBack: () => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [name, setName] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const formData = new FormData();
+    formData.append('name', name);
+    files.forEach((f) => formData.append('files', f));
+
+    await fetch('/api/rewards/add', { method: 'POST', body: formData });
+    setSubmitting(false);
+    onCreated();
+  };
+
+  return (
+    <>
+      <Page.Header className="p-0">
+        <TopBar title="Add Rewards" startAdornment={<button onClick={onBack}>← Back</button>} />
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-4">
+        <div>
+          <label className="text-sm font-semibold block mb-1">Reward name</label>
+          <input className="w-full border rounded-lg p-3" placeholder="e.g. Museum Pass" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Ticket files ({files.length} selected)</label>
+          {files.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {files.map((f, i) => (
+                <div key={i} className="flex items-center justify-between border rounded-lg p-2">
+                  <p className="text-sm truncate">{f.name}</p>
+                  <button className="text-red-500 text-xs" onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="block border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer">
+            <p className="text-gray-400 text-sm">Tap to add files (image, PDF, pkpass)</p>
+            <input
+              type="file"
+              accept="image/*,.pdf,.pkpass"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files ?? []);
+                setFiles((prev) => [...prev, ...newFiles]);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+        <Button size="lg" variant="primary" className="w-full" onClick={handleSubmit} disabled={submitting || !name || files.length === 0}>
+          {submitting ? 'Uploading...' : `Add ${files.length} Reward${files.length !== 1 ? 's' : ''}`}
+        </Button>
+      </Page.Main>
+    </>
+  );
+}
 
 export default function CityPage() {
   const router = useRouter();
-  const [view, setView] = useState<'dashboard' | 'goal' | 'rewards' | 'addReward'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'goal' | 'rewards' | 'addReward' | 'newGoal'>('dashboard');
   const [selectedGoal, setSelectedGoal] = useState<number | null>(null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [rewards, setRewards] = useState<RewardSummary[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const goal = selectedGoal !== null ? goals[selectedGoal] : null;
+  useEffect(() => {
+    fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
+    fetch('/api/goals').then((r) => r.json()).then(setGoals);
+    fetch('/api/rewards').then((r) => r.json()).then((d) => setRewards(d.rewards));
+  }, [refreshKey]);
+
+  const goal = selectedGoal !== null ? goals.find((g) => g.id === selectedGoal) : null;
+  const totalRewards = rewards.reduce((s, r) => s + r.remaining, 0);
+  const totalVolunteers = campaigns.reduce((s, c) => s + c.volunteer_count, 0);
+
+  // New goal form
+  if (view === 'newGoal') {
+    return <NewGoalForm onCreated={() => { setView('dashboard'); setRefreshKey((k) => k + 1); }} onBack={() => setView('dashboard')} />;
+  }
 
   // Add reward form
   if (view === 'addReward') {
-    return (
-      <>
-        <Page.Header className="p-0">
-          <TopBar
-            title="Add Reward"
-            startAdornment={
-              <button onClick={() => setView('rewards')}>← Back</button>
-            }
-          />
-        </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-semibold block mb-1">Reward type</label>
-              <select className="w-full border rounded-lg p-3">
-                <option>Museum Pass</option>
-                <option>Theater Ticket</option>
-                <option>Pool Access</option>
-                <option>Transit Pass</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold block mb-1">Quantity</label>
-              <input type="number" placeholder="e.g. 50" className="w-full border rounded-lg p-3" />
-            </div>
-            <Button size="lg" variant="primary" className="w-full">
-              Add Reward
-            </Button>
-          </div>
-        </Page.Main>
-      </>
-    );
+    return <AddRewardForm onCreated={() => { setView('rewards'); setRefreshKey((k) => k + 1); }} onBack={() => setView('rewards')} />;
   }
 
   // Global rewards management
   if (view === 'rewards') {
-    const totalRewards = civicRewards.reduce((s, r) => s + r.remaining, 0);
     return (
       <>
         <Page.Header className="p-0">
-          <TopBar
-            title="Civic Rewards"
-            startAdornment={
-              <button onClick={() => setView('dashboard')}>← Back</button>
-            }
-          />
+          <TopBar title="Civic Rewards" startAdornment={<button onClick={() => setView('dashboard')}>← Back</button>} />
         </Page.Header>
         <Page.Main className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
@@ -69,7 +158,7 @@ export default function CityPage() {
               + Add
             </Button>
           </div>
-          {civicRewards.map((r) => (
+          {rewards.map((r) => (
             <div key={r.name} className="bg-white border rounded-xl p-4 flex justify-between items-center">
               <div>
                 <p className="font-semibold">{r.name}</p>
@@ -88,21 +177,22 @@ export default function CityPage() {
 
   // Goal detail
   if (view === 'goal' && goal) {
-    const goalCampaigns = campaigns.filter((c) => c.goalId === goal.id);
+    const goalCampaigns = campaigns.filter((c) => c.goal_id === goal.id);
     return (
       <>
         <Page.Header className="p-0">
           <TopBar
             title={goal.title}
-            startAdornment={
-              <button onClick={() => { setView('dashboard'); setSelectedGoal(null); }}>← Back</button>
-            }
+            startAdornment={<button onClick={() => { setView('dashboard'); setSelectedGoal(null); }}>← Back</button>}
           />
         </Page.Header>
         <Page.Main className="flex flex-col gap-3">
           <p className="text-sm text-gray-600">{goal.description}</p>
 
           <p className="font-semibold mt-2">Campaigns</p>
+          {goalCampaigns.length === 0 && (
+            <p className="text-sm text-gray-400 text-center mt-4">No campaigns yet</p>
+          )}
           {goalCampaigns.map((c) => (
             <div key={c.id} className="bg-white border rounded-xl p-4 space-y-2">
               <div className="flex justify-between items-start">
@@ -111,13 +201,8 @@ export default function CityPage() {
               </div>
               <p className="text-sm text-gray-600">by {c.ngo}</p>
               <p className="text-sm">
-                {c.volunteerCount}/{c.maxVolunteers} volunteers · {c.fundingRequired} USDC
+                {c.volunteer_count}/{c.max_volunteers} volunteers · {c.funding_required} EURC
               </p>
-              {c.status === 'Funded' && (
-                <Button size="sm" variant="primary" className="w-full mt-2">
-                  Activate Campaign
-                </Button>
-              )}
             </div>
           ))}
         </Page.Main>
@@ -126,16 +211,12 @@ export default function CityPage() {
   }
 
   // Dashboard
-  const totalRewards = civicRewards.reduce((s, r) => s + r.remaining, 0);
-
   return (
     <>
       <Page.Header className="p-0">
         <TopBar
           title="City Dashboard"
-          startAdornment={
-            <button onClick={() => router.push('/home')}>← Back</button>
-          }
+          startAdornment={<button onClick={() => router.push('/home')}>← Back</button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
@@ -149,14 +230,11 @@ export default function CityPage() {
             <p className="text-xs text-gray-500">Campaigns</p>
           </div>
           <div>
-            <p className="text-xl font-bold">
-              {campaigns.reduce((s, c) => s + c.volunteerCount, 0)}
-            </p>
+            <p className="text-xl font-bold">{totalVolunteers}</p>
             <p className="text-xs text-gray-500">Volunteers</p>
           </div>
         </div>
 
-        {/* Rewards shortcut */}
         <button
           onClick={() => setView('rewards')}
           className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex justify-between items-center"
@@ -170,13 +248,13 @@ export default function CityPage() {
 
         <div className="flex justify-between items-center mt-2">
           <p className="font-semibold">Goals</p>
-          <Button size="sm" variant="secondary">
+          <Button size="sm" variant="secondary" onClick={() => setView('newGoal')}>
             + New Goal
           </Button>
         </div>
 
         {goals.map((g) => {
-          const count = campaigns.filter((c) => c.goalId === g.id).length;
+          const count = campaigns.filter((c) => c.goal_id === g.id).length;
           return (
             <button
               key={g.id}
