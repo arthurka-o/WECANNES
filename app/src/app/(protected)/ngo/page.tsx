@@ -7,24 +7,125 @@ import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 
+function NewCampaignForm({
+  goals,
+  onCreated,
+  onBack,
+}: {
+  goals: Goal[];
+  onCreated: () => void;
+  onBack: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    goal_id: goals[0]?.id ?? 1,
+    title: '',
+    description: '',
+    funding_required: '',
+    min_volunteers: '',
+    max_volunteers: '',
+    event_date: '',
+    location: '',
+  });
+
+  const set = (field: string, value: string | number) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    await fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...form,
+        ngo: 'OceanCare', // hardcoded for demo
+        funding_required: Number(form.funding_required),
+        min_volunteers: Number(form.min_volunteers),
+        max_volunteers: Number(form.max_volunteers),
+      }),
+    });
+    setSubmitting(false);
+    onCreated();
+  };
+
+  return (
+    <>
+      <Page.Header className="p-0">
+        <TopBar
+          title="New Campaign"
+          startAdornment={<button onClick={onBack}>← Back</button>}
+        />
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-3">
+        <div>
+          <label className="text-sm font-semibold block mb-1">Goal</label>
+          <select
+            className="w-full border rounded-lg p-3"
+            value={form.goal_id}
+            onChange={(e) => set('goal_id', Number(e.target.value))}
+          >
+            {goals.map((g) => (
+              <option key={g.id} value={g.id}>{g.title}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Title</label>
+          <input className="w-full border rounded-lg p-3" value={form.title} onChange={(e) => set('title', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Description</label>
+          <textarea className="w-full border rounded-lg p-3" rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Location</label>
+          <input className="w-full border rounded-lg p-3" value={form.location} onChange={(e) => set('location', e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-sm font-semibold block mb-1">Funding (EURC)</label>
+            <input type="number" className="w-full border rounded-lg p-3" value={form.funding_required} onChange={(e) => set('funding_required', e.target.value)} />
+          </div>
+          <div>
+            <label className="text-sm font-semibold block mb-1">Min volunteers</label>
+            <input type="number" className="w-full border rounded-lg p-3" value={form.min_volunteers} onChange={(e) => set('min_volunteers', e.target.value)} />
+          </div>
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Max volunteers</label>
+          <input type="number" className="w-full border rounded-lg p-3" value={form.max_volunteers} onChange={(e) => set('max_volunteers', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1">Event date</label>
+          <input type="date" className="w-full border rounded-lg p-3" value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
+        </div>
+        <Button size="lg" variant="primary" className="w-full" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? 'Creating...' : 'Create Campaign'}
+        </Button>
+      </Page.Main>
+    </>
+  );
+}
+
 export default function NgoPage() {
   const router = useRouter();
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
+  const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
     fetch('/api/goals').then((r) => r.json()).then(setGoals);
-  }, []);
+  }, [refreshKey]);
 
   // TODO: filter by actual NGO identity. Hardcoded for demo.
   const ngoCampaigns = campaigns.filter((c) => c.ngo === 'OceanCare');
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
-  // QR code display for volunteer check-in
   const [qrValue, setQrValue] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,6 +141,11 @@ export default function NgoPage() {
       setQrValue(null);
     }
   }, [showQR, campaign]);
+
+  // New campaign form
+  if (showNewCampaign) {
+    return <NewCampaignForm goals={goals} onCreated={() => { setShowNewCampaign(false); setRefreshKey((k) => k + 1); }} onBack={() => setShowNewCampaign(false)} />;
+  }
 
   if (showQR && campaign) {
     return (
@@ -148,7 +254,13 @@ export default function NgoPage() {
               <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
             </p>
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
-            <p className="text-sm"><span className="font-semibold">Event deadline:</span> {campaign.event_deadline}</p>
+            <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
+            {campaign.status === 'Open' && (
+              <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
+            )}
+            {campaign.status === 'Active' && (
+              <p className="text-sm"><span className="font-semibold">Submit results by:</span> {campaign.event_deadline}</p>
+            )}
           </div>
 
           {campaign.status === 'Active' && (
@@ -193,7 +305,7 @@ export default function NgoPage() {
       <Page.Main className="flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <p className="font-semibold">Your Campaigns</p>
-          <Button size="sm" variant="secondary">
+          <Button size="sm" variant="secondary" onClick={() => setShowNewCampaign(true)}>
             + New Campaign
           </Button>
         </div>

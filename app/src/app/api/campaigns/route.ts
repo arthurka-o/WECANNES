@@ -1,4 +1,4 @@
-import { getCampaign, getCampaigns } from '@/lib/db';
+import { createCampaign, getCampaign, getCampaigns } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
@@ -10,4 +10,10 @@ export async function GET(req: NextRequest) {
       : NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   return NextResponse.json(getCampaigns());
+}
+
+export async function POST(req: NextRequest) {
+  const data = await req.json();
+  const id = createCampaign(data);
+  return NextResponse.json({ id }, { status: 201 });
 }

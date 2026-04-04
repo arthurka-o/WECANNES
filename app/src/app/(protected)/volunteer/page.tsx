@@ -399,7 +399,7 @@ export default function VolunteerPage() {
               {campaign.volunteer_count}/{campaign.max_volunteers}
             </p>
             <p className="text-sm">
-              <span className="font-semibold">Deadline:</span> {campaign.event_deadline}
+              <span className="font-semibold">Event date:</span> {campaign.event_date}
             </p>
           </div>
 
