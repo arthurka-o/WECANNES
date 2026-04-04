@@ -1,33 +1,85 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import { campaigns, goals, ngoDirectory } from '@/lib/mock-data';
+import type { Campaign, Goal } from '@/lib/db';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function BusinessPage() {
   const router = useRouter();
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
-  const [tab, setTab] = useState<'browse' | 'review'>('browse');
+  const [tab, setTab] = useState<'browse' | 'review' | 'sponsored'>('browse');
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
+  useEffect(() => {
+    fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
+    fetch('/api/goals').then((r) => r.json()).then(setGoals);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    if (selectedCampaign !== null) {
+      fetch(`/api/campaigns/photos?campaignId=${selectedCampaign}`)
+        .then((r) => r.json())
+        .then(setPhotos);
+    } else {
+      setPhotos([]);
+    }
+  }, [selectedCampaign]);
+
+  // TODO: filter by actual business identity. Hardcoded for demo.
+  const businessName = "Pierre's Restaurant";
   const openCampaigns = campaigns.filter((c) => c.status === 'Open');
-  const pendingReview = campaigns.filter(
-    (c) => c.status === 'PendingReview' && c.sponsor === 'Librairie Cannes'
-  );
-  const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
+  const pendingReview = campaigns.filter((c) => c.status === 'PendingReview' && c.sponsor === businessName);
+  const sponsored = campaigns.filter((c) => c.sponsor === businessName && c.status !== 'Open');
+  const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
-  // Campaign detail (for sponsoring)
+  const handleFund = async (campaignId: number) => {
+    // TODO: in production this calls the smart contract's fundCampaign()
+    // For now, just update status in SQLite
+    await fetch('/api/campaigns/fund', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId, sponsor: businessName }),
+    });
+    setSelectedCampaign(null);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleApprove = async (campaignId: number) => {
+    // TODO: in production this calls the smart contract's approveRelease()
+    await fetch('/api/campaigns/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId }),
+    });
+    setSelectedCampaign(null);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleReject = async (campaignId: number) => {
+    // TODO: in production this calls the smart contract's rejectCompletion()
+    await fetch('/api/campaigns/reject', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaignId }),
+    });
+    setSelectedCampaign(null);
+    setRefreshKey((k) => k + 1);
+  };
+
+  // Campaign detail — Open (sponsor it)
   if (campaign && campaign.status === 'Open') {
-    const goal = goals.find((g) => g.id === campaign.goalId);
+    const goal = goals.find((g) => g.id === campaign.goal_id);
     return (
       <>
         <Page.Header className="p-0">
           <TopBar
             title={campaign.title}
-            startAdornment={
-              <button onClick={() => setSelectedCampaign(null)}>← Back</button>
-            }
+            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
           />
         </Page.Header>
         <Page.Main className="flex flex-col gap-4">
@@ -37,30 +89,29 @@ export default function BusinessPage() {
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
-            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.minVolunteers}–{campaign.maxVolunteers}</p>
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.fundingRequired} USDC</p>
-            <p className="text-sm"><span className="font-semibold">Deadline:</span> {campaign.deadline}</p>
+            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
+            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
+            <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
+            <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
           </div>
 
-          <Button size="lg" variant="primary" className="w-full">
-            Sponsor — {campaign.fundingRequired} USDC
+          <Button size="lg" variant="primary" className="w-full" onClick={() => handleFund(campaign.id)}>
+            Sponsor — {campaign.funding_required} EURC
           </Button>
         </Page.Main>
       </>
     );
   }
 
-  // Review detail (for approving completion)
+  // Campaign detail — PendingReview (approve/reject)
   if (campaign && campaign.status === 'PendingReview') {
-    const goal = goals.find((g) => g.id === campaign.goalId);
+    const goal = goals.find((g) => g.id === campaign.goal_id);
     return (
       <>
         <Page.Header className="p-0">
           <TopBar
             title="Review Completion"
-            startAdornment={
-              <button onClick={() => setSelectedCampaign(null)}>← Back</button>
-            }
+            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
           />
         </Page.Header>
         <Page.Main className="flex flex-col gap-4">
@@ -72,18 +123,17 @@ export default function BusinessPage() {
           <p className="text-sm text-gray-600">{campaign.ngo} · {campaign.location}</p>
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteerCount}</p>
-            <p className="text-sm"><span className="font-semibold">Required range:</span> {campaign.minVolunteers}–{campaign.maxVolunteers}</p>
-            <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.fundingRequired} USDC</p>
+            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteer_count}</p>
+            <p className="text-sm"><span className="font-semibold">Required:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
+            <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
           </div>
 
-          {/* Photos from NGO */}
           <p className="font-semibold">Event Photos</p>
           <div className="grid grid-cols-2 gap-2">
-            {campaign.photos.length > 0 ? (
-              campaign.photos.map((_, i) => (
-                <div key={i} className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                  <p className="text-gray-400 text-xs">Photo {i + 1}</p>
+            {photos.length > 0 ? (
+              photos.map((p, i) => (
+                <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                  <img src={p} alt="" className="w-full h-full object-cover" />
                 </div>
               ))
             ) : (
@@ -91,32 +141,26 @@ export default function BusinessPage() {
             )}
           </div>
 
-          {/* NGO contact info */}
-          {(() => {
-            const ngo = ngoDirectory[campaign.ngo];
-            return ngo ? (
-              <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                <p className="text-sm font-semibold">NGO Contact</p>
-                <p className="text-sm">{ngo.contactEmail}</p>
-                <p className="text-sm">{ngo.contactPhone}</p>
-                <p className="text-xs text-gray-400">
-                  Contact the NGO if photos need to be resubmitted
-                </p>
-              </div>
-            ) : null;
-          })()}
+          <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+            <p className="text-sm font-semibold">NGO Contact</p>
+            <p className="text-sm">{campaign.ngo}</p>
+            {campaign.ngo_contact && <p className="text-sm">{campaign.ngo_contact}</p>}
+            <p className="text-xs text-gray-400">
+              Contact the NGO if photos need to be resubmitted
+            </p>
+          </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-800">
-              By approving, {campaign.fundingRequired} USDC will be released to {campaign.ngo}. You can use these photos for marketing and ESG reporting.
+              By approving, {campaign.funding_required} EURC will be released to {campaign.ngo}. You can use these photos for marketing and ESG reporting.
             </p>
           </div>
 
           <div className="flex gap-2">
-            <Button size="lg" variant="secondary" className="flex-1">
+            <Button size="lg" variant="secondary" className="flex-1" onClick={() => handleReject(campaign.id)}>
               Reject
             </Button>
-            <Button size="lg" variant="primary" className="flex-1">
+            <Button size="lg" variant="primary" className="flex-1" onClick={() => handleApprove(campaign.id)}>
               Approve & Release
             </Button>
           </div>
@@ -128,19 +172,72 @@ export default function BusinessPage() {
     );
   }
 
+  // Campaign detail — any other status (view only)
+  if (campaign) {
+    const goal = goals.find((g) => g.id === campaign.goal_id);
+    return (
+      <>
+        <Page.Header className="p-0">
+          <TopBar
+            title={campaign.title}
+            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
+          />
+        </Page.Header>
+        <Page.Main className="flex flex-col gap-4">
+          <div className="flex gap-2">
+            <Chip label={campaign.status} />
+            <Chip label={goal?.category ?? ''} />
+          </div>
+          <p className="text-sm text-gray-600">{campaign.location}</p>
+          <p>{campaign.description}</p>
+
+          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
+            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count}/{campaign.max_volunteers}</p>
+            <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
+          </div>
+
+          {campaign.status === 'Completed' && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-green-800">{campaign.funding_required} EURC released</p>
+              <p className="text-sm text-green-600 mt-1">Campaign completed successfully</p>
+            </div>
+          )}
+
+          {campaign.status === 'Expired' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-red-800">Campaign expired</p>
+              <p className="text-sm text-red-600 mt-1">Funds refunded to your wallet</p>
+            </div>
+          )}
+
+          {photos.length > 0 && (
+            <>
+              <p className="font-semibold">Event Photos</p>
+              <div className="grid grid-cols-2 gap-2">
+                {photos.map((p, i) => (
+                  <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                    <img src={p} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </Page.Main>
+      </>
+    );
+  }
+
   // List view with tabs
   return (
     <>
       <Page.Header className="p-0">
         <TopBar
           title="Business"
-          startAdornment={
-            <button onClick={() => router.push('/home')}>← Back</button>
-          }
+          startAdornment={<button onClick={() => router.push('/home')}>← Back</button>}
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
-        {/* Tab switcher */}
         <div className="flex gap-2">
           <button
             onClick={() => setTab('browse')}
@@ -154,25 +251,28 @@ export default function BusinessPage() {
           >
             Review ({pendingReview.length})
           </button>
+          <button
+            onClick={() => setTab('sponsored')}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'sponsored' ? 'bg-black text-white' : 'bg-gray-100'}`}
+          >
+            My ({sponsored.length})
+          </button>
         </div>
 
         {tab === 'browse' && (
           <>
             <p className="text-sm text-gray-500">Campaigns looking for sponsors</p>
+            {openCampaigns.length === 0 && <p className="text-center text-gray-400 mt-4">No campaigns need sponsoring</p>}
             {openCampaigns.map((c) => {
-              const goal = goals.find((g) => g.id === c.goalId);
+              const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedCampaign(c.id)}
-                  className="text-left bg-white border rounded-xl p-4 space-y-2"
-                >
+                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <p className="font-semibold">{c.title}</p>
                     <Chip label={goal?.category ?? ''} />
                   </div>
                   <p className="text-sm text-gray-600">{c.ngo} · {c.location}</p>
-                  <p className="text-sm font-semibold">{c.fundingRequired} USDC</p>
+                  <p className="text-sm font-semibold">{c.funding_required} EURC</p>
                 </button>
               );
             })}
@@ -182,23 +282,37 @@ export default function BusinessPage() {
         {tab === 'review' && (
           <>
             <p className="text-sm text-gray-500">Campaigns awaiting your approval</p>
-            {pendingReview.length === 0 && (
-              <p className="text-center text-gray-400 mt-4">Nothing to review</p>
-            )}
+            {pendingReview.length === 0 && <p className="text-center text-gray-400 mt-4">Nothing to review</p>}
             {pendingReview.map((c) => {
-              const goal = goals.find((g) => g.id === c.goalId);
+              const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedCampaign(c.id)}
-                  className="text-left bg-white border rounded-xl p-4 space-y-2"
-                >
+                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <p className="font-semibold">{c.title}</p>
                     <Chip label={goal?.category ?? ''} />
                   </div>
-                  <p className="text-sm text-gray-600">{c.ngo} · {c.volunteerCount} verified volunteers</p>
-                  <p className="text-sm font-semibold">{c.fundingRequired} USDC to release</p>
+                  <p className="text-sm text-gray-600">{c.ngo} · {c.volunteer_count} verified volunteers</p>
+                  <p className="text-sm font-semibold">{c.funding_required} EURC to release</p>
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {tab === 'sponsored' && (
+          <>
+            <p className="text-sm text-gray-500">Campaigns you sponsored</p>
+            {sponsored.length === 0 && <p className="text-center text-gray-400 mt-4">No sponsored campaigns yet</p>}
+            {sponsored.map((c) => {
+              const goal = goals.find((g) => g.id === c.goal_id);
+              return (
+                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <p className="font-semibold">{c.title}</p>
+                    <Chip label={c.status} />
+                  </div>
+                  <p className="text-sm text-gray-600">{c.ngo} · {c.location}</p>
+                  <p className="text-sm font-semibold">{c.funding_required} EURC</p>
                 </button>
               );
             })}

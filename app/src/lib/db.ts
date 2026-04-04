@@ -38,6 +38,7 @@ db.exec(`
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     ngo TEXT NOT NULL,
+    ngo_contact TEXT,
     sponsor TEXT,
     funding_required INTEGER NOT NULL,
     min_volunteers INTEGER NOT NULL,
@@ -225,6 +226,7 @@ export interface Campaign {
   title: string;
   description: string;
   ngo: string;
+  ngo_contact: string | null;
   sponsor: string | null;
   funding_required: number;
   min_volunteers: number;
@@ -302,6 +304,10 @@ export function updateCampaignStatus(campaignId: number, status: string): void {
   db.prepare('UPDATE campaigns SET status = ? WHERE id = ?').run(status, campaignId);
 }
 
+export function fundCampaign(campaignId: number, sponsor: string): void {
+  db.prepare('UPDATE campaigns SET sponsor = ?, status = \'Active\' WHERE id = ?').run(sponsor, campaignId);
+}
+
 export function getCampaignPhotos(campaignId: number): string[] {
   const rows = db.prepare('SELECT file_path FROM campaign_photos WHERE campaign_id = ?').all(campaignId) as { file_path: string }[];
   return rows.map((r) => r.file_path);
@@ -323,19 +329,19 @@ function seed(): void {
   insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
 
   const insertCampaign = db.prepare(`
-    INSERT INTO campaigns (goal_id, title, description, ngo, sponsor, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, status, location)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, sponsor, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, status, location)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  //                                                                                                                                          event_date   sponsor_dl   event_dl
-  insertCampaign.run(1, 'Plage du Midi Cleanup',           '2km beach cleanup before summer season. Equipment provided.',       'OceanCare',        null, 500, 20, 40, '2026-06-15', '2026-05-15', '2026-07-15', 'Open',          'Plage du Midi, Cannes');
-  insertCampaign.run(1, 'Port Canto Shore Cleanup',        'Cleanup around the marina area. Gloves and bags provided.',         'OceanCare',        "Pierre's Restaurant", 350, 15, 30, '2026-06-20', '2026-05-20', '2026-07-20', 'Active',        'Port Canto, Cannes');
-  insertCampaign.run(2, 'Weekend Reading Buddies',         'Pair volunteers with kids for Saturday morning reading sessions.',  'LireEnsemble',     'Librairie Cannes',    200,  8, 15, '2026-03-15', '2026-02-15', '2026-04-15', 'Completed',     'Bibliothèque Municipale, Cannes');
-  insertCampaign.run(3, 'Summer Meal Prep',                'Prepare and distribute meals to three local shelters.',             'SolidaritéCannes', null, 800, 10, 25, '2026-08-01', '2026-07-01', '2026-09-01', 'Open',          'Centre Social, Cannes');
-  insertCampaign.run(1, 'La Croisette Shoreline Cleanup',  'Clear debris along La Croisette promenade shoreline.',             'OceanCare',        'Hôtel Martinez',      600, 20, 35, '2026-05-10', '2026-04-10', '2026-06-10', 'PendingReview', 'La Croisette, Cannes');
-  insertCampaign.run(1, 'Îles de Lérins Beach Restoration','Restore beach areas on Sainte-Marguerite island.',                 'OceanCare',        'Club Nautique',       450, 15, 25, '2026-03-20', '2026-02-20', '2026-04-20', 'Completed',     'Île Sainte-Marguerite, Cannes');
-  insertCampaign.run(1, 'Spring Coast Sweep',              'Early spring cleanup of the eastern coast.',                        'OceanCare',        'Café del Mar',        250, 10, 20, '2026-02-15', '2026-01-15', '2026-03-15', 'Expired',       'Plage du Mouré Rouge, Cannes');
-  insertCampaign.run(2, 'After-School Tutoring',           'Weekly tutoring sessions for middle school students.',              'LireEnsemble',     'Fnac Cannes',         300, 12, 20, '2026-03-01', '2026-02-01', '2026-04-01', 'Expired',       'Collège Les Mûriers, Cannes');
-  insertCampaign.run(1, 'Mandelieu Estuary Cleanup',       'Clean up the Siagne river estuary before nesting season.',          'OceanCare',        'Decathlon Cannes',    400, 10, 25, '2026-05-20', '2026-04-20', '2026-06-20', 'Active',        'Estuaire de la Siagne, Mandelieu');
+  insertCampaign.run(1, 'Plage du Midi Cleanup',           '2km beach cleanup before summer season. Equipment provided.',       'OceanCare',        'contact@oceancare.org',        null,                  500, 20, 40, '2026-06-15', '2026-05-15', '2026-07-15', 'Open',          'Plage du Midi, Cannes');
+  insertCampaign.run(1, 'Port Canto Shore Cleanup',        'Cleanup around the marina area. Gloves and bags provided.',         'OceanCare',        'contact@oceancare.org',        "Pierre's Restaurant", 350, 15, 30, '2026-06-20', '2026-05-20', '2026-07-20', 'Active',        'Port Canto, Cannes');
+  insertCampaign.run(2, 'Weekend Reading Buddies',         'Pair volunteers with kids for Saturday morning reading sessions.',  'LireEnsemble',     'hello@lireensemble.fr',        'Librairie Cannes',    200,  8, 15, '2026-03-15', '2026-02-15', '2026-04-15', 'Completed',     'Bibliothèque Municipale, Cannes');
+  insertCampaign.run(3, 'Summer Meal Prep',                'Prepare and distribute meals to three local shelters.',             'SolidaritéCannes', 'info@solidarite-cannes.fr',    null,                  800, 10, 25, '2026-08-01', '2026-07-01', '2026-09-01', 'Open',          'Centre Social, Cannes');
+  insertCampaign.run(1, 'La Croisette Shoreline Cleanup',  'Clear debris along La Croisette promenade shoreline.',             'OceanCare',        'contact@oceancare.org',        'Hôtel Martinez',      600, 20, 35, '2026-05-10', '2026-04-10', '2026-06-10', 'PendingReview', 'La Croisette, Cannes');
+  insertCampaign.run(1, 'Îles de Lérins Beach Restoration','Restore beach areas on Sainte-Marguerite island.',                 'OceanCare',        'contact@oceancare.org',        'Club Nautique',       450, 15, 25, '2026-03-20', '2026-02-20', '2026-04-20', 'Completed',     'Île Sainte-Marguerite, Cannes');
+  insertCampaign.run(1, 'Spring Coast Sweep',              'Early spring cleanup of the eastern coast.',                        'OceanCare',        'contact@oceancare.org',        'Café del Mar',        250, 10, 20, '2026-02-15', '2026-01-15', '2026-03-15', 'Expired',       'Plage du Mouré Rouge, Cannes');
+  insertCampaign.run(2, 'After-School Tutoring',           'Weekly tutoring sessions for middle school students.',              'LireEnsemble',     'hello@lireensemble.fr',        'Fnac Cannes',         300, 12, 20, '2026-03-01', '2026-02-01', '2026-04-01', 'Expired',       'Collège Les Mûriers, Cannes');
+  insertCampaign.run(1, 'Mandelieu Estuary Cleanup',       'Clean up the Siagne river estuary before nesting season.',          'OceanCare',        'contact@oceancare.org',        'Decathlon Cannes',    400, 10, 25, '2026-05-20', '2026-04-20', '2026-06-20', 'Active',        'Estuaire de la Siagne, Mandelieu');
+  insertCampaign.run(3, 'Soup Kitchen Weekend',            'Prepare hot meals for 200 people at the downtown shelter.',          'SolidaritéCannes', 'info@solidarite-cannes.fr',    "Pierre's Restaurant", 550, 12, 20, '2026-04-20', '2026-03-20', '2026-05-20', 'PendingReview', 'Centre Social, Cannes');
 
   // Demo: fake volunteer checked into completed campaign (id=3) and active campaign (id=2)
   const demoNullifier = '0x2bfe4b2f1b17853598ecd565629c0fbed11d1acd6bff1d726ce8b4fad99763a3';
@@ -351,6 +357,10 @@ function seed(): void {
   // Fake volunteers for Active campaign with enough to submit (id=9)
   for (let i = 0; i < 12; i++) {
     db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(9, `fake-volunteer-estuary-${i}`);
+  }
+  // Fake volunteers for Pierre's PendingReview campaign (id=10)
+  for (let i = 0; i < 15; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(10, `fake-volunteer-soup-${i}`);
   }
 }
 
