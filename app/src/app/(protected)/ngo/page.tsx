@@ -1,7 +1,7 @@
 'use client';
 
 import { Page } from '@/components/PageLayout';
-import { campaigns, goals } from '@/lib/mock-data';
+import type { Campaign, Goal } from '@/lib/db';
 import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,9 +12,17 @@ export default function NgoPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
 
+  useEffect(() => {
+    fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
+    fetch('/api/goals').then((r) => r.json()).then(setGoals);
+  }, []);
+
+  // TODO: filter by actual NGO identity. Hardcoded for demo.
   const ngoCampaigns = campaigns.filter((c) => c.ngo === 'OceanCare');
-  const campaign = selectedCampaign !== null ? campaigns[selectedCampaign] : null;
+  const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   // QR code display for volunteer check-in
   const [qrValue, setQrValue] = useState<string | null>(null);
@@ -56,7 +64,7 @@ export default function NgoPage() {
             Show this to volunteers so they can scan and check in.
           </p>
           <p className="text-xs text-gray-400">
-            {campaign.volunteerCount}/{campaign.maxVolunteers} checked in
+            {campaign.volunteer_count}/{campaign.max_volunteers} checked in
           </p>
         </Page.Main>
       </>
@@ -94,9 +102,9 @@ export default function NgoPage() {
           </div>
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteerCount}</p>
-            <p className="text-sm"><span className="font-semibold">Min required:</span> {campaign.minVolunteers}</p>
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.fundingRequired} USDC</p>
+            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteer_count}</p>
+            <p className="text-sm"><span className="font-semibold">Min required:</span> {campaign.min_volunteers}</p>
+            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
           </div>
 
           <Button size="lg" variant="primary" className="w-full">
@@ -112,8 +120,8 @@ export default function NgoPage() {
 
   // Campaign detail
   if (campaign) {
-    const goal = goals.find((g) => g.id === campaign.goalId);
-    const canComplete = campaign.status === 'Active' && campaign.volunteerCount >= campaign.minVolunteers;
+    const goal = goals.find((g) => g.id === campaign.goal_id);
+    const canComplete = campaign.status === 'Active' && campaign.volunteer_count >= campaign.min_volunteers;
 
     return (
       <>
@@ -136,11 +144,11 @@ export default function NgoPage() {
             <p className="text-sm"><span className="font-semibold">Sponsor:</span> {campaign.sponsor ?? 'Awaiting sponsor'}</p>
             <p className="text-sm">
               <span className="font-semibold">Volunteers:</span>{' '}
-              {campaign.volunteerCount}/{campaign.maxVolunteers}
-              <span className="text-gray-400"> (min {campaign.minVolunteers})</span>
+              {campaign.volunteer_count}/{campaign.max_volunteers}
+              <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
             </p>
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.fundingRequired} USDC</p>
-            <p className="text-sm"><span className="font-semibold">Deadline:</span> {campaign.deadline}</p>
+            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
+            <p className="text-sm"><span className="font-semibold">Event deadline:</span> {campaign.event_deadline}</p>
           </div>
 
           {campaign.status === 'Active' && (
@@ -155,9 +163,9 @@ export default function NgoPage() {
             </Button>
           )}
 
-          {campaign.status === 'Active' && campaign.volunteerCount < campaign.minVolunteers && (
+          {campaign.status === 'Active' && campaign.volunteer_count < campaign.min_volunteers && (
             <p className="text-xs text-amber-600 text-center">
-              Need {campaign.minVolunteers - campaign.volunteerCount} more volunteers before you can submit
+              Need {campaign.min_volunteers - campaign.volunteer_count} more volunteers before you can submit
             </p>
           )}
 
@@ -191,7 +199,7 @@ export default function NgoPage() {
         </div>
 
         {ngoCampaigns.map((c) => {
-          const goal = goals.find((g) => g.id === c.goalId);
+          const goal = goals.find((g) => g.id === c.goal_id);
           return (
             <button
               key={c.id}
@@ -204,7 +212,7 @@ export default function NgoPage() {
               </div>
               <p className="text-sm text-gray-600">{goal?.title}</p>
               <p className="text-sm">
-                {c.volunteerCount}/{c.maxVolunteers} volunteers · {c.fundingRequired} USDC
+                {c.volunteer_count}/{c.max_volunteers} volunteers · {c.funding_required} EURC
               </p>
             </button>
           );
