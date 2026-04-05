@@ -475,7 +475,9 @@ export default function VolunteerPage() {
     }
   }, [walletAddress, selectedCampaign, claiming]);
 
-  const activeCampaigns = campaigns.filter((c) => c.status === 'Active');
+  const activeCampaigns = campaigns
+    .filter((c) => c.status === 'Active')
+    .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
   const completedCampaigns = campaigns.filter(
     (c) => c.status === 'Completed' && checkedInCampaigns.includes(c.id)
   );
@@ -824,6 +826,8 @@ export default function VolunteerPage() {
           const g = goals.find((g) => g.id === c.goal_id);
           const spotsLeft = c.max_volunteers - c.volunteer_count;
           const checkedIn = checkedInCampaigns.includes(c.id);
+          const daysUntil = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          const timeLabel = daysUntil <= 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
           return (
             <button
               key={c.id}
@@ -836,13 +840,19 @@ export default function VolunteerPage() {
               </div>
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>
-                  {c.volunteer_count}/{c.max_volunteers} volunteers
-                  {c.interest_count > 0 && ` · ${c.interest_count} signed up`}
+                <span className={daysUntil <= 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
+                  {timeLabel}
                 </span>
+                <span>
+                  {c.interest_count > 0 && `${c.interest_count} signed up`}
+                  {c.interest_count > 0 && c.volunteer_count > 0 && ' · '}
+                  {c.volunteer_count > 0 && `${c.volunteer_count} checked in`}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>{spotsLeft} spots left</span>
                 {checkedIn && <span className="text-green-600">Checked in</span>}
                 {!checkedIn && interestedCampaigns.includes(c.id) && <span className="text-blue-600">Signed up</span>}
-                {!checkedIn && !interestedCampaigns.includes(c.id) && spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
               </div>
             </button>
           );

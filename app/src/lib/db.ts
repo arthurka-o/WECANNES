@@ -427,10 +427,10 @@ function seed(): void {
     300, 10, 20, '2026-04-05', '2026-03-05', '2026-05-05', 'Active', 'La Croisette, Cannes');
 
   // 5: Active (Pierre's), past event — NGO can submit (enough volunteers)
-  ins.run(1, 'Mandelieu Estuary Cleanup',
-    'Clean up the Siagne river estuary before nesting season.',
+  ins.run(1, 'Mouré Rouge Beach Cleanup',
+    'Clear plastic waste from Mouré Rouge beach before nesting season.',
     'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
-    400, 10, 25, '2026-04-01', '2026-03-01', '2026-05-01', 'Active', 'Estuaire de la Siagne, Mandelieu');
+    400, 10, 25, '2026-04-01', '2026-03-01', '2026-05-01', 'Active', 'Plage du Mouré Rouge, Cannes');
 
   // 6: PendingReview (Pierre's) — business reviews photos
   ins.run(3, 'Soup Kitchen Weekend',
@@ -460,7 +460,7 @@ function seed(): void {
   ins.run(2, 'After-School Tutoring',
     'Weekly tutoring sessions for middle school students.',
     'LireEnsemble', 'hello@lireensemble.fr', null,
-    300, 12, 20, '2026-02-01', '2026-01-01', '2026-03-01', 'Expired', 'Collège Les Mûriers, Cannes');
+    300, 12, 20, '2026-02-01', '2026-01-01', '2026-03-01', 'Expired', 'Médiathèque de Cannes, Cannes');
 
   // --- Demo volunteer ---
   const demoNullifier = '0x2bfe4b2f1b17853598ecd565629c0fbed11d1acd6bff1d726ce8b4fad99763a3';
