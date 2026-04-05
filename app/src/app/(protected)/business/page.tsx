@@ -201,7 +201,7 @@ export default function BusinessPage() {
             <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
             <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
             {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count} verified</span></p>
+              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
             )}
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
             <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
@@ -236,10 +236,10 @@ export default function BusinessPage() {
           <p className="text-sm text-gray-600">{campaign.ngo} · {campaign.location}</p>
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteer_count}</p>
+            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count}</p>
             <p className="text-sm"><span className="font-semibold">Required:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
             {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count} verified</span></p>
+              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
             )}
             <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
           </div>
@@ -311,7 +311,7 @@ export default function BusinessPage() {
             <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
             <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count}/{campaign.max_volunteers}</p>
             {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count} verified</span></p>
+              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
             )}
             <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
           </div>
@@ -413,7 +413,7 @@ export default function BusinessPage() {
                     <p className="font-semibold">{c.title}</p>
                     <Chip label={goal?.category ?? ''} />
                   </div>
-                  <p className="text-sm text-gray-600">{c.ngo} · {c.volunteer_count} verified volunteers</p>
+                  <p className="text-sm text-gray-600">{c.ngo} · {c.volunteer_count} checked in</p>
                   <p className="text-sm font-semibold">{c.funding_required} EURC to release</p>
                 </button>
               );

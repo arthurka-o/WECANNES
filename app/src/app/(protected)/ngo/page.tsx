@@ -307,7 +307,7 @@ export default function NgoPage() {
           </div>
 
           <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-            <p className="text-sm"><span className="font-semibold">Verified check-ins:</span> {campaign.volunteer_count}</p>
+            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count} checked in</p>
             <p className="text-sm"><span className="font-semibold">Min required:</span> {campaign.min_volunteers}</p>
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
           </div>
@@ -435,14 +435,21 @@ export default function NgoPage() {
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <p className="text-sm"><span className="font-semibold">Location:</span> {campaign.location}</p>
             <p className="text-sm"><span className="font-semibold">Sponsor:</span> {campaign.sponsor ?? 'Awaiting sponsor'}</p>
-            <p className="text-sm">
-              <span className="font-semibold">Volunteers:</span>{' '}
-              {campaign.volunteer_count}/{campaign.max_volunteers}
-              <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
-            </p>
-            {/* #10: show signup count */}
             {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count} verified</span></p>
+              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
+            )}
+            {new Date().toISOString().split('T')[0] >= campaign.event_date && (
+              <p className="text-sm">
+                <span className="font-semibold">Volunteers:</span>{' '}
+                {campaign.volunteer_count}/{campaign.max_volunteers} checked in
+                <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
+              </p>
+            )}
+            {new Date().toISOString().split('T')[0] < campaign.event_date && (
+              <p className="text-sm">
+                <span className="font-semibold">Volunteers needed:</span>{' '}
+                {campaign.min_volunteers}–{campaign.max_volunteers}
+              </p>
             )}
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
             <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
@@ -450,11 +457,11 @@ export default function NgoPage() {
               <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
             )}
             {campaign.status === 'Active' && (
-              <p className="text-sm"><span className="font-semibold">Submit results by:</span> {campaign.event_deadline}</p>
+              <p className="text-sm"><span className="font-semibold">Submit evidence by:</span> {campaign.event_deadline}</p>
             )}
           </div>
 
-          {campaign.status === 'Active' && (
+          {campaign.status === 'Active' && new Date().toISOString().split('T')[0] <= campaign.event_date && (
             <Button size="lg" variant="secondary" className="w-full" onClick={() => setShowQR(true)}>
               Show Check-In QR
             </Button>
@@ -564,7 +571,9 @@ export default function NgoPage() {
               </div>
               <p className="text-sm text-gray-600">{goal?.title}</p>
               <p className="text-sm">
-                {c.volunteer_count}/{c.max_volunteers} volunteers · {c.funding_required} EURC
+                {c.interest_count > 0 ? `${c.interest_count} signed up · ` : ''}
+                {c.volunteer_count > 0 ? `${c.volunteer_count} checked in · ` : ''}
+                {c.funding_required} EURC
               </p>
             </button>
           );
