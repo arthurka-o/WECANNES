@@ -283,14 +283,16 @@ function ProfileView({
   goals,
   checkedInCampaigns,
   claimedCampaigns,
-  walletAddress,
+  username,
+  profilePictureUrl,
   onSelectCampaign,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
   checkedInCampaigns: number[];
   claimedCampaigns: number[];
-  walletAddress?: string;
+  username?: string;
+  profilePictureUrl?: string;
   onSelectCampaign: (id: number) => void;
 }) {
   const router = useRouter();
@@ -301,8 +303,17 @@ function ProfileView({
   const claimedList = myCampaigns.filter(
     (c) => claimedCampaigns.includes(c.id),
   );
-  const activeCampaigns = myCampaigns.filter((c) => c.status === 'Active');
   const totalClaimed = claimedCampaigns.length;
+
+  // Impact summary from campaign categories
+  const categoryCounts: Record<string, number> = {};
+  for (const c of myCampaigns) {
+    const g = goals.find((g) => g.id === c.goal_id);
+    if (g) categoryCounts[g.category] = (categoryCounts[g.category] || 0) + 1;
+  }
+  const impactLines = Object.entries(categoryCounts).map(
+    ([cat, count]) => `${count} ${cat.toLowerCase()} campaign${count > 1 ? 's' : ''}`,
+  );
 
   return (
     <>
@@ -313,8 +324,28 @@ function ProfileView({
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-4">
+        {/* Profile header */}
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+            {profilePictureUrl ? (
+              <img src={profilePictureUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
+                {username?.[0]?.toUpperCase() ?? '?'}
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-bold text-lg">{username || 'Volunteer'}</p>
+            <div className="flex items-center gap-1 mt-1">
+              <span className="inline-block w-4 h-4 bg-blue-500 rounded-full text-white text-[10px] flex items-center justify-center leading-none">&#10003;</span>
+              <span className="text-xs text-blue-600 font-semibold">Verified Human</span>
+            </div>
+          </div>
+        </div>
+
         {/* Stats */}
-        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-3 text-center">
+        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 text-center">
           <div>
             <p className="text-xl font-bold">{checkedInCampaigns.length}</p>
             <p className="text-xs text-gray-500">Check-ins</p>
@@ -323,11 +354,17 @@ function ProfileView({
             <p className="text-xl font-bold">{totalClaimed}</p>
             <p className="text-xs text-gray-500">Rewards</p>
           </div>
-          <div>
-            <p className="text-xl font-bold">{activeCampaigns.length}</p>
-            <p className="text-xs text-gray-500">Active</p>
-          </div>
         </div>
+
+        {/* Impact summary */}
+        {impactLines.length > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <p className="text-sm font-semibold text-green-800">Your impact</p>
+            <p className="text-sm text-green-700 mt-1">
+              You contributed to {impactLines.join(', ')}
+            </p>
+          </div>
+        )}
 
         {/* Unclaimed rewards */}
         {completedUnclaimed.length > 0 && (
@@ -343,26 +380,6 @@ function ProfileView({
                   </div>
                   <p className="text-sm text-amber-700">Campaign completed — claim your reward!</p>
                 </button>
-              );
-            })}
-          </>
-        )}
-
-        {/* Active check-ins */}
-        {activeCampaigns.length > 0 && (
-          <>
-            <p className="font-semibold">Active Check-ins</p>
-            {activeCampaigns.map((c) => {
-              const g = goals.find((g) => g.id === c.goal_id);
-              return (
-                <div key={c.id} className="bg-white border rounded-xl p-4 space-y-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
-                    <Chip label={g?.category ?? ''} />
-                  </div>
-                  <p className="text-sm text-gray-500">{c.location}</p>
-                  <p className="text-sm text-green-600">Checked in</p>
-                </div>
               );
             })}
           </>
@@ -394,15 +411,6 @@ function ProfileView({
             <p className="text-sm text-gray-400 mt-1">Check in to a campaign to get started!</p>
           </div>
         )}
-
-        {/* Wallet address */}
-        {walletAddress && (
-          <div className="mt-4 bg-gray-50 rounded-lg p-3">
-            <p className="text-xs text-gray-400">Wallet</p>
-            <p className="text-xs font-mono text-gray-600 truncate">{walletAddress}</p>
-          </div>
-        )}
-
       </Page.Main>
     </>
   );
@@ -529,7 +537,8 @@ export default function VolunteerPage() {
           goals={goals}
           checkedInCampaigns={checkedInCampaigns}
           claimedCampaigns={claimedCampaigns}
-          walletAddress={walletAddress}
+          username={session?.user?.username}
+          profilePictureUrl={session?.user?.profilePictureUrl}
           onSelectCampaign={(id) => { setSelectedCampaign(id); setMainTab('campaigns'); }}
         />
         {bottomTabs}
