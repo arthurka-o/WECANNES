@@ -40,9 +40,33 @@ export async function POST(req: NextRequest) {
   }
 
   // Return the v3 proof fields so frontend can submit on-chain via MiniKit
+  console.log('=== VERIFY PROOF DEBUG ===');
+  console.log('protocol_version:', payload?.protocol_version);
+  console.log('responses count:', payload?.responses?.length);
+  if (payload?.responses) {
+    payload.responses.forEach((r: Record<string, unknown>, i: number) => {
+      console.log(`response[${i}]:`, {
+        identifier: r.identifier,
+        has_merkle_root: !!r.merkle_root,
+        has_proof: !!r.proof,
+        has_nullifier: !!r.nullifier,
+        proof_type: typeof r.proof,
+        proof_is_array: Array.isArray(r.proof),
+      });
+    });
+  }
+
   const v3Response = payload?.responses?.find(
     (r: { merkle_root?: string }) => r.merkle_root,
   );
+
+  console.log('v3Response found:', !!v3Response);
+  if (v3Response) {
+    console.log('merkle_root:', v3Response.merkle_root?.substring(0, 20) + '...');
+    console.log('nullifier:', v3Response.nullifier?.substring(0, 20) + '...');
+    console.log('proof length:', v3Response.proof?.length);
+  }
+  console.log('=========================');
 
   return NextResponse.json({
     verifyRes,
