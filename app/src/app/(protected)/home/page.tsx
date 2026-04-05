@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 
 const SLIDES = [
   {
-    title: 'Welcome to Civic Impact',
+    title: 'Welcome to WECANNES',
     description: 'A marketplace connecting cities, businesses, and volunteers for real civic change.',
   },
   {
