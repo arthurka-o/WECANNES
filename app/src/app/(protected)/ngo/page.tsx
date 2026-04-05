@@ -605,8 +605,8 @@ export default function NgoPage() {
       <Page.Main className="flex flex-col gap-5 pt-2">
         <div className="flex justify-between items-center">
           <p className="font-headline font-bold text-on-surface">Your Campaigns</p>
-          <button onClick={() => setShowNewCampaign(true)} className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">
-            + New
+          <button onClick={() => setShowNewCampaign(true)} className="px-4 py-2 rounded-full bg-surface-container-low text-primary text-xs font-semibold">
+            + New Campaign
           </button>
         </div>
 

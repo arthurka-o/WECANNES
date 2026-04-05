@@ -288,7 +288,6 @@ function ProfileView({
   username,
   profilePictureUrl,
   myRewards,
-  onSelectCampaign,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
@@ -297,13 +296,9 @@ function ProfileView({
   username?: string;
   profilePictureUrl?: string;
   myRewards: CivicReward[];
-  onSelectCampaign: (id: number) => void;
 }) {
   const router = useRouter();
   const myCampaigns = campaigns.filter((c) => checkedInCampaigns.includes(c.id));
-  const completedUnclaimed = myCampaigns.filter(
-    (c) => c.status === 'Completed' && !claimedCampaigns.includes(c.id),
-  );
 
   // Impact summary from campaign categories
   const categoryCounts: Record<string, number> = {};
@@ -317,116 +312,145 @@ function ProfileView({
 
   return (
     <>
-      <Page.Header className="p-0">
-        <TopBar
-          title="My Profile"
-          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
-        />
+      <Page.Header>
+        <div className="flex justify-between items-center">
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Profile</h2>
+          <button onClick={() => router.push('/debug')} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+            <span className="material-symbols-outlined">settings</span>
+          </button>
+        </div>
       </Page.Header>
-      <Page.Main className="flex flex-col gap-4">
-        {/* Profile header */}
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-            {profilePictureUrl ? (
-              <img src={profilePictureUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
-                {username?.[0]?.toUpperCase() ?? '?'}
+      <Page.Main className="flex flex-col gap-5 pt-2">
+        {/* Profile hero */}
+        <div className="impact-gradient rounded-[24px] p-6 text-white">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 rounded-full bg-white/20 overflow-hidden flex-shrink-0 border-2 border-white/30">
+              {profilePictureUrl ? (
+                <img src={profilePictureUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-2xl text-white/60 font-headline font-bold">
+                  {username?.[0]?.toUpperCase() ?? '?'}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="font-headline text-xl font-bold">{username || 'Volunteer'}</p>
+              <div className="verified-badge-glass px-2.5 py-1 rounded-full flex items-center gap-1.5 mt-1.5 w-fit border-white/20">
+                <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+                <span className="text-white font-bold text-[10px] uppercase tracking-wider">Verified Human</span>
               </div>
-            )}
-          </div>
-          <div>
-            <p className="font-bold text-lg">{username || 'Volunteer'}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="inline-block w-4 h-4 bg-blue-500 rounded-full text-white text-[10px] flex items-center justify-center leading-none">&#10003;</span>
-              <span className="text-xs text-blue-600 font-semibold">Verified Human</span>
             </div>
           </div>
+          {impactLines.length > 0 && (
+            <p className="text-white/80 text-sm">
+              Contributed to {impactLines.join(', ')}
+            </p>
+          )}
         </div>
 
         {/* Stats */}
-        <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-2 text-center">
-          <div>
-            <p className="text-xl font-bold">{checkedInCampaigns.length}</p>
-            <p className="text-xs text-gray-500">Check-ins</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+            <p className="font-headline text-2xl font-extrabold text-primary">{checkedInCampaigns.length}</p>
+            <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">Check-ins</p>
           </div>
-          <div>
-            <p className="text-xl font-bold">{myRewards.length}</p>
-            <p className="text-xs text-gray-500">Rewards</p>
+          <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+            <p className="font-headline text-2xl font-extrabold text-primary">{myRewards.length}</p>
+            <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">Rewards</p>
+          </div>
+          <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+            <p className="font-headline text-2xl font-extrabold text-primary">{myCampaigns.length}</p>
+            <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">Campaigns</p>
           </div>
         </div>
-
-        {/* Impact summary */}
-        {impactLines.length > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-sm font-semibold text-green-800">Your impact</p>
-            <p className="text-sm text-green-700 mt-1">
-              You contributed to {impactLines.join(', ')}
-            </p>
-          </div>
-        )}
 
         {/* Achievements */}
         {(() => {
           const achievements = [
-            { icon: '🌊', name: 'First Wave', desc: 'Complete your first check-in', unlocked: checkedInCampaigns.length >= 1 },
-            { icon: '🏖️', name: 'Beach Guardian', desc: 'Join 3 environment campaigns', unlocked: (categoryCounts['Environment'] ?? 0) >= 3 },
-            { icon: '🎁', name: 'Reward Hunter', desc: 'Claim your first reward', unlocked: myRewards.length >= 1 },
-            { icon: '⭐', name: 'Rising Star', desc: 'Check in to 5 campaigns', unlocked: checkedInCampaigns.length >= 5 },
-            { icon: '🤝', name: 'Community Hero', desc: 'Help across 3 categories', unlocked: Object.keys(categoryCounts).length >= 3 },
-            { icon: '🏆', name: 'Cannes Champion', desc: 'Complete 10 campaigns', unlocked: checkedInCampaigns.length >= 10 },
+            { icon: '🌊', name: 'First Wave', desc: 'First check-in', unlocked: checkedInCampaigns.length >= 1 },
+            { icon: '🏖️', name: 'Beach Guardian', desc: '3 environment', unlocked: (categoryCounts['Environment'] ?? 0) >= 3 },
+            { icon: '🎁', name: 'Reward Hunter', desc: 'First reward', unlocked: myRewards.length >= 1 },
+            { icon: '⭐', name: 'Rising Star', desc: '5 check-ins', unlocked: checkedInCampaigns.length >= 5 },
+            { icon: '🤝', name: 'Community', desc: '3 categories', unlocked: Object.keys(categoryCounts).length >= 3 },
+            { icon: '🏆', name: 'Champion', desc: '10 campaigns', unlocked: checkedInCampaigns.length >= 10 },
           ];
           return (
-            <>
-              <p className="font-semibold">Achievements</p>
-              <div className="grid grid-cols-3 gap-2">
+            <div>
+              <p className="font-headline font-bold text-on-surface mb-3">Achievements</p>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
                 {achievements.map((a) => (
                   <div
                     key={a.name}
-                    className={`rounded-xl p-3 text-center space-y-1 ${a.unlocked ? 'bg-white border' : 'bg-gray-100 opacity-40'}`}
+                    className={`flex-shrink-0 w-24 rounded-[20px] p-3 text-center border ${a.unlocked ? 'bg-surface-container-lowest border-outline-variant/10 shadow-sm' : 'bg-surface-container border-transparent opacity-40'}`}
                   >
-                    <p className="text-2xl">{a.icon}</p>
-                    <p className="text-xs font-semibold leading-tight">{a.name}</p>
-                    <p className="text-[10px] text-gray-400 leading-tight">{a.desc}</p>
+                    <p className="text-2xl mb-1">{a.icon}</p>
+                    <p className="text-[11px] font-bold text-on-surface leading-tight">{a.name}</p>
+                    <p className="text-[9px] text-on-surface-variant leading-tight mt-0.5">{a.desc}</p>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           );
         })()}
 
-        {/* Unclaimed rewards */}
-        {completedUnclaimed.length > 0 && (
-          <>
-            <p className="font-semibold">Unclaimed Rewards</p>
-            {completedUnclaimed.map((c) => {
-              const g = goals.find((g) => g.id === c.goal_id);
-              return (
-                <button key={c.id} onClick={() => onSelectCampaign(c.id)} className="text-left bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1 w-full">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
-                    <Chip label={g?.category ?? ''} />
+        {/* Leaderboard */}
+        <div className="bg-surface-container-lowest rounded-[20px] p-4 border border-outline-variant/10 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full impact-gradient flex items-center justify-center">
+              <span className="material-symbols-outlined text-white text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>leaderboard</span>
+            </div>
+            <div>
+              <p className="font-headline font-bold text-on-surface text-sm">
+                #{Math.max(1, 25 - checkedInCampaigns.length * 4)} in Cannes
+              </p>
+              <p className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">Volunteer ranking</p>
+            </div>
+          </div>
+          <span className="text-on-surface-variant material-symbols-outlined text-lg">chevron_right</span>
+        </div>
+
+        {/* Recent activity */}
+        {myCampaigns.length > 0 && (
+          <div>
+            <p className="font-headline font-bold text-on-surface mb-3">Recent Activity</p>
+            <div className="bg-surface-container-lowest rounded-[20px] border border-outline-variant/10 shadow-sm overflow-hidden">
+              {myCampaigns.slice(0, 4).map((c, i) => {
+                const isCompleted = c.status === 'Completed';
+                const isCurrent = c.status === 'Active';
+                return (
+                  <div key={c.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-surface-container-high' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isCompleted ? 'bg-primary-container/20' : isCurrent ? 'bg-blue-100' : 'bg-surface-container'}`}>
+                      <span className={`material-symbols-outlined text-base ${isCompleted ? 'text-primary' : isCurrent ? 'text-blue-700' : 'text-on-surface-variant'}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {isCompleted ? 'check_circle' : isCurrent ? 'radio_button_checked' : 'schedule'}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-on-surface truncate">{c.title}</p>
+                      <p className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">
+                        {isCompleted ? 'Completed' : isCurrent ? 'Checked in' : 'Signed up'}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm text-amber-700">Campaign completed — claim your reward!</p>
-                </button>
-              );
-            })}
-          </>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* My rewards */}
         {myRewards.length > 0 && (
-          <>
-            <p className="font-semibold">My Rewards</p>
+          <div>
+            <p className="font-headline font-bold text-on-surface mb-3">My Rewards</p>
             {myRewards.map((r) => (
-              <div key={r.id} className="bg-white border rounded-xl p-4 flex justify-between items-center">
+              <div key={r.id} className="bg-surface-container-lowest rounded-[20px] p-4 flex justify-between items-center border border-outline-variant/10 shadow-sm mb-3">
                 <div>
-                  <p className="font-semibold">{r.name}</p>
-                  <p className="text-xs text-gray-400">Claimed {r.claimed_at ? new Date(r.claimed_at).toLocaleDateString() : ''}</p>
+                  <p className="font-bold text-on-surface text-sm">{r.name}</p>
+                  <p className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider mt-0.5">
+                    Claimed {r.claimed_at ? new Date(r.claimed_at).toLocaleDateString() : ''}
+                  </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
+                <button
+                  className="px-4 py-2 rounded-xl bg-surface-container-low text-primary text-xs font-bold uppercase tracking-wider"
                   onClick={async () => {
                     const res = await fetch(r.file_path);
                     const blob = await res.blob();
@@ -436,17 +460,18 @@ function ProfileView({
                   }}
                 >
                   Save
-                </Button>
+                </button>
               </div>
             ))}
-          </>
+          </div>
         )}
 
         {/* Empty state */}
         {myCampaigns.length === 0 && (
-          <div className="text-center mt-8">
-            <p className="text-gray-500">No activity yet.</p>
-            <p className="text-sm text-gray-400 mt-1">Check in to a campaign to get started!</p>
+          <div className="text-center mt-12">
+            <span className="material-symbols-outlined text-5xl text-outline-variant mb-3">explore</span>
+            <p className="font-headline font-bold text-on-surface">No activity yet</p>
+            <p className="text-sm text-on-surface-variant mt-1">Sign up for a campaign to get started!</p>
           </div>
         )}
       </Page.Main>
@@ -594,7 +619,6 @@ export default function VolunteerPage() {
           username={session?.user?.username}
           profilePictureUrl={session?.user?.profilePictureUrl}
           myRewards={myRewards}
-          onSelectCampaign={(id) => { setSelectedCampaign(id); setMainTab('campaigns'); }}
         />
         {bottomTabs}
       </Page>
