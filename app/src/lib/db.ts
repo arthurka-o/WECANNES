@@ -394,10 +394,35 @@ export function addCampaignPhoto(campaignId: number, filePath: string): void {
 }
 
 // --- Seed ---
+// Use SEED_MODE env var to pick seed: "demo" (default) or "test"
+
+export { db };
 
 function seed(): void {
   const goalCount = db.prepare('SELECT COUNT(*) as c FROM goals').get() as { c: number };
   if (goalCount.c > 0) return;
+
+  const mode = process.env.SEED_MODE || 'demo';
+  if (mode === 'test') {
+    seedTest();
+  } else {
+    seedDemo();
+  }
+}
+
+function seedTest(): void {
+  // Minimal seed for testing on-chain actions
+  // Only goals + rewards (off-chain). No campaigns — create them through the app.
+  const insertGoal = db.prepare('INSERT INTO goals (title, category, description) VALUES (?, ?, ?)');
+  insertGoal.run('Beach Cleanup — Summer 2026', 'Environment', 'Clean up beaches before tourist season');
+  insertGoal.run('Youth Literacy Program', 'Education', 'Improve reading skills for children aged 6-12');
+  insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
+
+  const insertReward = db.prepare('INSERT INTO civic_rewards (name, file_path) VALUES (?, ?)');
+  for (let i = 0; i < 5; i++) insertReward.run('Free Ice Cream', '/icecream.png');
+}
+
+function seedDemo(): void {
 
   // --- Goals ---
   const insertGoal = db.prepare('INSERT INTO goals (title, category, description) VALUES (?, ?, ?)');
