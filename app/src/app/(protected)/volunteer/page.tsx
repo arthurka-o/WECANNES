@@ -421,6 +421,7 @@ export default function VolunteerPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
+  const [interestedCampaigns, setInterestedCampaigns] = useState<number[]>([]);
   const [claimedCampaigns, setClaimedCampaigns] = useState<number[]>([]);
   const [rewards, setRewards] = useState<RewardSummary[]>([]);
   const [claimedReward, setClaimedReward] = useState<CivicReward | null>(null);
@@ -431,7 +432,7 @@ export default function VolunteerPage() {
   useEffect(() => {
     fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
     fetch('/api/goals').then((r) => r.json()).then(setGoals);
-  }, [step, claiming]);
+  }, [step, claiming, interestedCampaigns.length]);
 
   useEffect(() => {
     if (walletAddress) {
@@ -441,7 +442,10 @@ export default function VolunteerPage() {
         body: JSON.stringify({ walletAddress }),
       })
         .then((r) => r.json())
-        .then((data) => setCheckedInCampaigns(data.campaigns));
+        .then((data) => {
+          setCheckedInCampaigns(data.campaigns);
+          setInterestedCampaigns(data.interests ?? []);
+        });
 
       fetch('/api/rewards', {
         method: 'PUT',
@@ -624,9 +628,54 @@ export default function VolunteerPage() {
     );
   }
 
-  // --- Active campaign detail + check-in flow ---
+  // --- Active campaign detail + check-in / interest flow ---
   if (campaign && goal) {
     const spotsLeft = campaign.max_volunteers - campaign.volunteer_count;
+    const today = new Date().toISOString().split('T')[0];
+    const isEventDay = today >= campaign.event_date;
+    const isInterested = interestedCampaigns.includes(campaign.id);
+
+    const handleInterest = async () => {
+      setStep('browse');
+      try {
+        const action = 'interest';
+        const rpRes = await fetch('/api/rp-signature', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action }),
+        });
+        if (!rpRes.ok) throw new Error('Failed to get RP signature');
+
+        const rpSig = await rpRes.json();
+        const rpContext: RpContext = {
+          rp_id: rpSig.rp_id,
+          nonce: rpSig.nonce,
+          created_at: rpSig.created_at,
+          expires_at: rpSig.expires_at,
+          signature: rpSig.sig,
+        };
+
+        const request = await IDKit.request({
+          app_id: process.env.NEXT_PUBLIC_APP_ID as `app_${string}`,
+          action,
+          rp_context: rpContext,
+          allow_legacy_proofs: true,
+        }).preset(orbLegacy({ signal: String(campaign.id) }));
+
+        const completion = await request.pollUntilCompletion();
+        if (!completion.success) return;
+
+        await fetch('/api/interest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payload: completion.result, campaignId: campaign.id, walletAddress }),
+        });
+
+        setInterestedCampaigns((prev) => [...prev, campaign.id]);
+      } catch (err) {
+        console.error('Interest error:', err);
+      }
+    };
 
     return (
       <>
@@ -657,6 +706,10 @@ export default function VolunteerPage() {
               {campaign.volunteer_count}/{campaign.max_volunteers}
             </p>
             <p className="text-sm">
+              <span className="font-semibold">Signed up:</span>{' '}
+              {campaign.interest_count} verified
+            </p>
+            <p className="text-sm">
               <span className="font-semibold">Event date:</span> {campaign.event_date}
             </p>
           </div>
@@ -670,7 +723,27 @@ export default function VolunteerPage() {
             </div>
           )}
 
-          {step === 'browse' && !isAlreadyCheckedIn && (
+          {step === 'browse' && !isAlreadyCheckedIn && !isEventDay && !isInterested && (
+            <Button
+              size="lg"
+              variant="primary"
+              className="w-full"
+              onClick={handleInterest}
+            >
+              Sign up
+            </Button>
+          )}
+
+          {step === 'browse' && !isAlreadyCheckedIn && !isEventDay && isInterested && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <p className="font-semibold text-blue-800">You&apos;re signed up!</p>
+              <p className="text-sm text-blue-600 mt-1">
+                Check-in opens on {campaign.event_date}
+              </p>
+            </div>
+          )}
+
+          {step === 'browse' && !isAlreadyCheckedIn && isEventDay && (
             <Button
               size="lg"
               variant="primary"
@@ -763,9 +836,13 @@ export default function VolunteerPage() {
               </div>
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>{c.volunteer_count}/{c.max_volunteers} volunteers</span>
+                <span>
+                  {c.volunteer_count}/{c.max_volunteers} volunteers
+                  {c.interest_count > 0 && ` · ${c.interest_count} signed up`}
+                </span>
                 {checkedIn && <span className="text-green-600">Checked in</span>}
-                {!checkedIn && spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
+                {!checkedIn && interestedCampaigns.includes(c.id) && <span className="text-blue-600">Signed up</span>}
+                {!checkedIn && !interestedCampaigns.includes(c.id) && spotsLeft <= 5 && <span className="text-amber-600">{spotsLeft} spots left</span>}
               </div>
             </button>
           );

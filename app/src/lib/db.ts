@@ -15,6 +15,13 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS interests (
+    campaign_id INTEGER NOT NULL,
+    nullifier TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (campaign_id, nullifier)
+  );
+
   CREATE TABLE IF NOT EXISTS checkin_tokens (
     campaign_id INTEGER PRIMARY KEY,
     token TEXT NOT NULL
@@ -97,6 +104,27 @@ export function setUserRole(walletAddress: string, role: string, name?: string, 
   db.prepare(
     'INSERT INTO users (wallet_address, role, name, email) VALUES (?, ?, ?, ?) ON CONFLICT(wallet_address) DO UPDATE SET role = ?, name = ?, email = ?'
   ).run(walletAddress, role, name ?? null, email ?? null, role, name ?? null, email ?? null);
+}
+
+// --- Interests ---
+
+export function hasExpressedInterest(campaignId: number, nullifier: string): boolean {
+  const row = db.prepare('SELECT 1 FROM interests WHERE campaign_id = ? AND nullifier = ?').get(campaignId, nullifier);
+  return !!row;
+}
+
+export function recordInterest(campaignId: number, nullifier: string): void {
+  db.prepare('INSERT OR IGNORE INTO interests (campaign_id, nullifier) VALUES (?, ?)').run(campaignId, nullifier);
+}
+
+export function getInterestCount(campaignId: number): number {
+  const row = db.prepare('SELECT COUNT(*) as count FROM interests WHERE campaign_id = ?').get(campaignId) as { count: number };
+  return row.count;
+}
+
+export function getInterestedCampaigns(nullifier: string): number[] {
+  const rows = db.prepare('SELECT campaign_id FROM interests WHERE nullifier = ?').all(nullifier) as { campaign_id: number }[];
+  return rows.map(r => r.campaign_id);
 }
 
 // --- Check-in tokens ---
@@ -270,24 +298,29 @@ export interface Campaign {
   status: string;
   location: string;
   volunteer_count: number;
+  interest_count: number;
 }
 
 export function getCampaigns(): Campaign[] {
   const rows = db.prepare(`
-    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count, COALESCE(i.cnt, 0) as interest_count
     FROM campaigns c
     LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
       ON ch.campaign_id = c.id
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM interests GROUP BY campaign_id) i
+      ON i.campaign_id = c.id
   `).all() as Campaign[];
   return rows;
 }
 
 export function getCampaign(id: number): Campaign | null {
   const row = db.prepare(`
-    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count, COALESCE(i.cnt, 0) as interest_count
     FROM campaigns c
     LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
       ON ch.campaign_id = c.id
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM interests GROUP BY campaign_id) i
+      ON i.campaign_id = c.id
     WHERE c.id = ?
   `).get(id) as Campaign | undefined;
   return row ?? null;
@@ -295,10 +328,12 @@ export function getCampaign(id: number): Campaign | null {
 
 export function getCampaignsByStatus(status: string): Campaign[] {
   const rows = db.prepare(`
-    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count
+    SELECT c.*, COALESCE(ch.cnt, 0) as volunteer_count, COALESCE(i.cnt, 0) as interest_count
     FROM campaigns c
     LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM checkins GROUP BY campaign_id) ch
       ON ch.campaign_id = c.id
+    LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM interests GROUP BY campaign_id) i
+      ON i.campaign_id = c.id
     WHERE c.status = ?
   `).all(status) as Campaign[];
   return rows;
@@ -355,44 +390,119 @@ function seed(): void {
   const goalCount = db.prepare('SELECT COUNT(*) as c FROM goals').get() as { c: number };
   if (goalCount.c > 0) return;
 
+  // --- Goals ---
   const insertGoal = db.prepare('INSERT INTO goals (title, category, description) VALUES (?, ?, ?)');
   insertGoal.run('Beach Cleanup — Summer 2026', 'Environment', 'Clean up beaches before tourist season');
   insertGoal.run('Youth Literacy Program', 'Education', 'Improve reading skills for children aged 6-12');
   insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
 
-  const insertCampaign = db.prepare(`
+  // --- Campaigns (single business: Pierre's Restaurant) ---
+  const ins = db.prepare(`
     INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, sponsor, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, status, location)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  insertCampaign.run(1, 'Plage du Midi Cleanup',           '2km beach cleanup before summer season. Equipment provided.',       'OceanCare',        'contact@oceancare.org',        null,                  500, 20, 40, '2026-06-15', '2026-05-15', '2026-07-15', 'Open',          'Plage du Midi, Cannes');
-  insertCampaign.run(1, 'Port Canto Shore Cleanup',        'Cleanup around the marina area. Gloves and bags provided.',         'OceanCare',        'contact@oceancare.org',        "Pierre's Restaurant", 350, 15, 30, '2026-06-20', '2026-05-20', '2026-07-20', 'Active',        'Port Canto, Cannes');
-  insertCampaign.run(2, 'Weekend Reading Buddies',         'Pair volunteers with kids for Saturday morning reading sessions.',  'LireEnsemble',     'hello@lireensemble.fr',        'Librairie Cannes',    200,  8, 15, '2026-03-15', '2026-02-15', '2026-04-15', 'Completed',     'Bibliothèque Municipale, Cannes');
-  insertCampaign.run(3, 'Summer Meal Prep',                'Prepare and distribute meals to three local shelters.',             'SolidaritéCannes', 'info@solidarite-cannes.fr',    null,                  800, 10, 25, '2026-08-01', '2026-07-01', '2026-09-01', 'Open',          'Centre Social, Cannes');
-  insertCampaign.run(1, 'La Croisette Shoreline Cleanup',  'Clear debris along La Croisette promenade shoreline.',             'OceanCare',        'contact@oceancare.org',        'Hôtel Martinez',      600, 20, 35, '2026-05-10', '2026-04-10', '2026-06-10', 'PendingReview', 'La Croisette, Cannes');
-  insertCampaign.run(1, 'Îles de Lérins Beach Restoration','Restore beach areas on Sainte-Marguerite island.',                 'OceanCare',        'contact@oceancare.org',        'Club Nautique',       450, 15, 25, '2026-03-20', '2026-02-20', '2026-04-20', 'Completed',     'Île Sainte-Marguerite, Cannes');
-  insertCampaign.run(1, 'Spring Coast Sweep',              'Early spring cleanup of the eastern coast.',                        'OceanCare',        'contact@oceancare.org',        'Café del Mar',        250, 10, 20, '2026-02-15', '2026-01-15', '2026-03-15', 'Expired',       'Plage du Mouré Rouge, Cannes');
-  insertCampaign.run(2, 'After-School Tutoring',           'Weekly tutoring sessions for middle school students.',              'LireEnsemble',     'hello@lireensemble.fr',        'Fnac Cannes',         300, 12, 20, '2026-03-01', '2026-02-01', '2026-04-01', 'Expired',       'Collège Les Mûriers, Cannes');
-  insertCampaign.run(1, 'Mandelieu Estuary Cleanup',       'Clean up the Siagne river estuary before nesting season.',          'OceanCare',        'contact@oceancare.org',        'Decathlon Cannes',    400, 10, 25, '2026-05-20', '2026-04-20', '2026-06-20', 'Active',        'Estuaire de la Siagne, Mandelieu');
-  insertCampaign.run(3, 'Soup Kitchen Weekend',            'Prepare hot meals for 200 people at the downtown shelter.',          'SolidaritéCannes', 'info@solidarite-cannes.fr',    "Pierre's Restaurant", 550, 12, 20, '2026-04-20', '2026-03-20', '2026-05-20', 'PendingReview', 'Centre Social, Cannes');
 
-  // Demo: fake volunteer checked into completed campaign (id=3) and active campaign (id=2)
+  // 1: Open, future event — business can sponsor, volunteers sign up
+  ins.run(1, 'Plage du Midi Cleanup',
+    '2km beach cleanup before summer season. Equipment provided.',
+    'OceanCare', 'contact@oceancare.org', null,
+    500, 20, 40, '2026-06-15', '2026-05-15', '2026-07-15', 'Open', 'Plage du Midi, Cannes');
+
+  // 2: Open, future event — another sponsorship opportunity, has signups
+  ins.run(3, 'Summer Meal Prep',
+    'Prepare and distribute meals to three local shelters.',
+    'SolidaritéCannes', 'info@solidarite-cannes.fr', null,
+    800, 10, 25, '2026-07-20', '2026-06-20', '2026-08-20', 'Open', 'Centre Social, Cannes');
+
+  // 3: Active (Pierre's), future event — volunteers can sign up but not check in
+  ins.run(1, 'Port Canto Shore Cleanup',
+    'Cleanup around the marina area. Gloves and bags provided.',
+    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    350, 15, 30, '2026-05-10', '2026-04-05', '2026-06-10', 'Active', 'Port Canto, Cannes');
+
+  // 4: Active (Pierre's), event is TODAY — volunteers can check in
+  ins.run(1, 'La Croisette Morning Cleanup',
+    'Early morning cleanup along the Croisette promenade.',
+    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    300, 10, 20, '2026-04-05', '2026-03-05', '2026-05-05', 'Active', 'La Croisette, Cannes');
+
+  // 5: Active (Pierre's), past event — NGO can submit (enough volunteers)
+  ins.run(1, 'Mandelieu Estuary Cleanup',
+    'Clean up the Siagne river estuary before nesting season.',
+    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    400, 10, 25, '2026-04-01', '2026-03-01', '2026-05-01', 'Active', 'Estuaire de la Siagne, Mandelieu');
+
+  // 6: PendingReview (Pierre's) — business reviews photos
+  ins.run(3, 'Soup Kitchen Weekend',
+    'Prepare hot meals for 200 people at the downtown shelter.',
+    'SolidaritéCannes', 'info@solidarite-cannes.fr', "Pierre's Restaurant",
+    550, 12, 20, '2026-03-20', '2026-02-20', '2026-04-20', 'PendingReview', 'Centre Social, Cannes');
+
+  // 7: Completed (Pierre's) — volunteer can claim reward
+  ins.run(2, 'Weekend Reading Buddies',
+    'Pair volunteers with kids for Saturday morning reading sessions.',
+    'LireEnsemble', 'hello@lireensemble.fr', "Pierre's Restaurant",
+    200, 8, 15, '2026-03-15', '2026-02-15', '2026-04-15', 'Completed', 'Bibliothèque Municipale, Cannes');
+
+  // 8: Completed (Pierre's) — another completed, demo volunteer already claimed
+  ins.run(1, 'Îles de Lérins Beach Restoration',
+    'Restore beach areas on Sainte-Marguerite island.',
+    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    450, 15, 25, '2026-02-20', '2026-01-20', '2026-03-20', 'Completed', 'Île Sainte-Marguerite, Cannes');
+
+  // 9: Expired (Pierre's) — sponsored but deadline passed, refund
+  ins.run(1, 'Spring Coast Sweep',
+    'Early spring cleanup of the eastern coast.',
+    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    250, 10, 20, '2026-02-01', '2026-01-01', '2026-03-01', 'Expired', 'Plage du Mouré Rouge, Cannes');
+
+  // 10: Expired — never got a sponsor
+  ins.run(2, 'After-School Tutoring',
+    'Weekly tutoring sessions for middle school students.',
+    'LireEnsemble', 'hello@lireensemble.fr', null,
+    300, 12, 20, '2026-02-01', '2026-01-01', '2026-03-01', 'Expired', 'Collège Les Mûriers, Cannes');
+
+  // --- Demo volunteer ---
   const demoNullifier = '0x2bfe4b2f1b17853598ecd565629c0fbed11d1acd6bff1d726ce8b4fad99763a3';
   const demoWallet = '0x239572713847b7341ce40d4665ab36e601137d43';
   db.prepare('INSERT INTO user_nullifiers (wallet_address, nullifier) VALUES (?, ?)').run(demoWallet, demoNullifier);
-  db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(2, demoNullifier);
-  db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(3, demoNullifier);
-  db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(5, demoNullifier);
-  // Fake other volunteers for PendingReview campaign (id=5)
-  for (let i = 0; i < 22; i++) {
-    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(5, `fake-volunteer-${i}`);
+
+  // Demo volunteer checked into: 5 (past active), 7 (completed), 8 (completed)
+  // Campaign 4 (today) left unchecked so tester can try the check-in flow
+  for (const cid of [5, 7, 8]) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(cid, demoNullifier);
   }
-  // Fake volunteers for Active campaign with enough to submit (id=9)
-  for (let i = 0; i < 12; i++) {
-    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(9, `fake-volunteer-estuary-${i}`);
+
+  // Fake signups (interests) on open/active campaigns to show demand
+  for (let i = 0; i < 8; i++) {
+    db.prepare('INSERT INTO interests (campaign_id, nullifier) VALUES (?, ?)').run(1, `fake-interest-${i}`);
   }
-  // Fake volunteers for Pierre's PendingReview campaign (id=10)
   for (let i = 0; i < 15; i++) {
-    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(10, `fake-volunteer-soup-${i}`);
+    db.prepare('INSERT INTO interests (campaign_id, nullifier) VALUES (?, ?)').run(2, `fake-interest-meal-${i}`);
+  }
+  for (let i = 0; i < 12; i++) {
+    db.prepare('INSERT INTO interests (campaign_id, nullifier) VALUES (?, ?)').run(3, `fake-interest-port-${i}`);
+  }
+  for (let i = 0; i < 6; i++) {
+    db.prepare('INSERT INTO interests (campaign_id, nullifier) VALUES (?, ?)').run(4, `fake-interest-croisette-${i}`);
+  }
+
+  // Fake check-ins for campaigns that need volunteer counts
+  // Campaign 5 (Active, past) — 12 volunteers so NGO can submit (min 10)
+  for (let i = 0; i < 12; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(5, `fake-volunteer-estuary-${i}`);
+  }
+  // Campaign 6 (PendingReview) — 15 volunteers
+  for (let i = 0; i < 15; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(6, `fake-volunteer-soup-${i}`);
+  }
+  // Campaign 7 (Completed) — 10 volunteers
+  for (let i = 0; i < 10; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(7, `fake-volunteer-reading-${i}`);
+  }
+  // Campaign 8 (Completed) — 18 volunteers
+  for (let i = 0; i < 18; i++) {
+    db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(8, `fake-volunteer-lerins-${i}`);
   }
 }
 
