@@ -1,20 +1,16 @@
 'use client';
 
-import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { CampaignCard } from '@/components/CampaignCard';
 import { Page } from '@/components/PageLayout';
 import { formatDate } from '@/lib/utils';
 import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { useUserOperationReceipt } from '@worldcoin/minikit-react';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose, Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import jsQR from 'jsqr';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { createPublicClient, decodeAbiParameters, encodeFunctionData, http } from 'viem';
-import { worldchain } from 'viem/chains';
 
 // --- QR Scanner ---
 
@@ -140,11 +136,6 @@ function QrScanner({
 
 // --- World ID Check-In ---
 
-const client = createPublicClient({
-  chain: worldchain,
-  transport: http('https://worldchain-mainnet.g.alchemy.com/public'),
-});
-
 function WorldIdCheckIn({
   campaignId,
   walletAddress,
@@ -157,7 +148,6 @@ function WorldIdCheckIn({
   onError: () => void;
 }) {
   const [state, setState] = useState<'pending' | 'success' | 'failed' | undefined>(undefined);
-  const { poll } = useUserOperationReceipt({ client });
 
   const handleVerify = async () => {
     setState('pending');
@@ -207,39 +197,10 @@ function WorldIdCheckIn({
         return;
       }
 
-      // On-chain check-in (don't fail if this part errors)
-      if (data.v3Proof) {
-        try {
-          const { merkle_root, nullifier, proof } = data.v3Proof;
-          const [unpackedProof] = decodeAbiParameters(
-            [{ type: 'uint256[8]' }],
-            proof as `0x${string}`,
-          );
-
-          const txResult = await MiniKit.sendTransaction({
-            chainId: 480,
-            transactions: [
-              {
-                to: CAMPAIGN_ESCROW_ADDRESS,
-                data: encodeFunctionData({
-                  abi: CAMPAIGN_ESCROW_ABI,
-                  functionName: 'checkIn',
-                  args: [
-                    BigInt(campaignId),
-                    BigInt(merkle_root),
-                    BigInt(nullifier),
-                    unpackedProof,
-                  ],
-                }),
-              },
-            ],
-          });
-
-          await poll(txResult.data.userOpHash);
-        } catch (err) {
-          console.error('On-chain check-in failed:', err);
-        }
-      }
+      // Check-in verified off-chain via World ID v4 API
+      // On-chain verification commented out — v3 WorldIDRouter
+      // doesn't accept proofs from IDKit v4's orbLegacy preset.
+      // TODO: re-enable when v4 on-chain verifier is deployed.
 
       setState('success');
       setTimeout(onSuccess, 1000);

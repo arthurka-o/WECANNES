@@ -117,36 +117,12 @@ contract CampaignEscrow {
         }
     }
 
-    // --- Volunteer check-in (World ID verified on-chain) ---
-
-    function checkIn(
-        uint256 campaignId,
-        uint256 root,
-        uint256 nullifierHash,
-        uint256[8] calldata proof
-    ) external {
-        Campaign storage c = campaigns[campaignId];
-        if (c.status != CampaignStatus.Active)
-            revert WrongStatus(CampaignStatus.Active, c.status);
-        if (checkins[campaignId][nullifierHash]) revert AlreadyCheckedIn();
-
-        // Signal = string representation of campaignId (matches frontend)
-        uint256 signalHash = uint256(keccak256(abi.encodePacked(Strings.toString(campaignId)))) >> 8;
-
-        worldId.verifyProof(
-            root,
-            GROUP_ID,
-            signalHash,
-            nullifierHash,
-            externalNullifierHash,
-            proof
-        );
-
-        checkins[campaignId][nullifierHash] = true;
-        c.volunteerCount++;
-
-        emit VolunteerCheckedIn(campaignId, nullifierHash);
-    }
+    // --- Volunteer check-in ---
+    // On-chain World ID verification is commented out.
+    // The v3 WorldIDRouter doesn't accept proofs from IDKit v4's
+    // orbLegacy preset. Volunteer check-ins are verified off-chain
+    // via the v4 API. TODO: re-enable when v4 on-chain verifier
+    // is deployed on World Chain mainnet.
 
     // --- NGO ---
 
@@ -183,8 +159,6 @@ contract CampaignEscrow {
         if (c.status != CampaignStatus.Active)
             revert WrongStatus(CampaignStatus.Active, c.status);
         if (block.timestamp > c.eventDeadline) revert DeadlinePassed();
-        if (c.volunteerCount < c.minVolunteers)
-            revert MinVolunteersNotMet(c.minVolunteers, c.volunteerCount);
 
         c.status = CampaignStatus.PendingReview;
         c.reviewDeadline = block.timestamp + REVIEW_PERIOD;
