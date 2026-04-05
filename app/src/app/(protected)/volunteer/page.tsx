@@ -364,6 +364,35 @@ function ProfileView({
           </div>
         )}
 
+        {/* Achievements */}
+        {(() => {
+          const achievements = [
+            { icon: '🌊', name: 'First Wave', desc: 'Complete your first check-in', unlocked: checkedInCampaigns.length >= 1 },
+            { icon: '🏖️', name: 'Beach Guardian', desc: 'Join 3 environment campaigns', unlocked: (categoryCounts['Environment'] ?? 0) >= 3 },
+            { icon: '🎁', name: 'Reward Hunter', desc: 'Claim your first reward', unlocked: myRewards.length >= 1 },
+            { icon: '⭐', name: 'Rising Star', desc: 'Check in to 5 campaigns', unlocked: checkedInCampaigns.length >= 5 },
+            { icon: '🤝', name: 'Community Hero', desc: 'Help across 3 categories', unlocked: Object.keys(categoryCounts).length >= 3 },
+            { icon: '🏆', name: 'Cannes Champion', desc: 'Complete 10 campaigns', unlocked: checkedInCampaigns.length >= 10 },
+          ];
+          return (
+            <>
+              <p className="font-semibold">Achievements</p>
+              <div className="grid grid-cols-3 gap-2">
+                {achievements.map((a) => (
+                  <div
+                    key={a.name}
+                    className={`rounded-xl p-3 text-center space-y-1 ${a.unlocked ? 'bg-white border' : 'bg-gray-100 opacity-40'}`}
+                  >
+                    <p className="text-2xl">{a.icon}</p>
+                    <p className="text-xs font-semibold leading-tight">{a.name}</p>
+                    <p className="text-[10px] text-gray-400 leading-tight">{a.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          );
+        })()}
+
         {/* Unclaimed rewards */}
         {completedUnclaimed.length > 0 && (
           <>
