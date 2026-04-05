@@ -436,129 +436,134 @@ export default function NgoPage() {
       }
     };
 
+    const isToday = new Date().toISOString().split('T')[0] >= campaign.event_date;
+    const progress = isToday ? Math.min(campaign.volunteer_count / campaign.min_volunteers, 1) : 0;
+    const days = Math.ceil((new Date(campaign.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title={campaign.title}
-            startAdornment={
-              <button onClick={() => setSelectedCampaign(null)}>← Back</button>
-            }
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedCampaign(null)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface truncate">{campaign.title}</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
+        <Page.Main className="flex flex-col gap-4 pt-2">
           <div className="flex gap-2">
-            <Chip label={campaign.status} />
-            <Chip label={goal?.category ?? ''} />
+            <span className="px-3 py-1 bg-white/90 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-outline-variant/10">{goal?.category}</span>
+            <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${
+              campaign.status === 'Completed' ? 'bg-primary-container/20 text-primary' :
+              campaign.status === 'Active' ? 'bg-blue-100 text-blue-800' :
+              campaign.status === 'Open' ? 'bg-amber-100 text-amber-800' :
+              campaign.status === 'PendingReview' ? 'bg-purple-100 text-purple-800' :
+              campaign.status === 'Expired' ? 'bg-red-100 text-red-800' :
+              'bg-surface-container text-on-surface-variant'
+            }`}>{formatStatus(campaign.status)}</span>
           </div>
 
-          <p className="text-sm text-gray-600">{campaign.description}</p>
+          <p className="text-sm text-on-surface-variant">{campaign.description}</p>
 
-          {/* Info rows */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">📍</span>
-              <span>{campaign.location}</span>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">location_on</span>
+              <span className="text-on-surface">{campaign.location}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">📅</span>
-              <span>
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">event</span>
+              <span className="text-on-surface">
                 {formatDate(campaign.event_date)}
-                {campaign.status === 'Active' && (() => {
-                  const days = Math.ceil((new Date(campaign.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  if (days < 0) return <span className="text-gray-400"> · {-days}d ago</span>;
-                  if (days === 0) return <span className="text-green-600 font-semibold"> · Today</span>;
-                  return <span className="text-gray-400"> · in {days}d</span>;
-                })()}
+                {days < 0 && <span className="text-on-surface-variant"> · {-days}d ago</span>}
+                {days === 0 && <span className="text-primary font-semibold"> · Today</span>}
+                {days > 0 && <span className="text-on-surface-variant"> · in {days}d</span>}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">💰</span>
-              <span>{campaign.funding_required} EURC</span>
-              {!campaign.sponsor && <Chip label="Needs sponsor" />}
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">payments</span>
+              <span className="text-on-surface">{campaign.funding_required} EURC</span>
             </div>
-            {campaign.sponsor && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400 w-5 text-center">🤝</span>
-                <span>{campaign.sponsor}</span>
+            {campaign.sponsor ? (
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="material-symbols-outlined text-on-surface-variant text-lg">handshake</span>
+                <span className="text-on-surface">{campaign.sponsor}</span>
               </div>
-            )}
-            {campaign.status === 'Open' && (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <span className="w-5 text-center">⏰</span>
-                <span>Find sponsor by {formatDate(campaign.sponsorship_deadline)}</span>
+            ) : (
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="material-symbols-outlined text-on-surface-variant text-lg">hourglass_empty</span>
+                <span className="text-on-surface-variant">Sponsor by {formatDate(campaign.sponsorship_deadline)}</span>
               </div>
             )}
             {campaign.status === 'Active' && (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <span className="w-5 text-center">⏰</span>
+              <div className="flex items-center gap-2.5 text-sm text-on-surface-variant">
+                <span className="material-symbols-outlined text-lg">schedule</span>
                 <span>Submit evidence by {formatDate(campaign.event_deadline)}</span>
               </div>
             )}
           </div>
 
           {/* Stats grid */}
-          {(() => {
-            const isToday = new Date().toISOString().split('T')[0] >= campaign.event_date;
-            const progress = isToday ? Math.min(campaign.volunteer_count / campaign.min_volunteers, 1) : 0;
-            return (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  {isToday ? (
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
-                      <p className="text-xs text-gray-500">checked in</p>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
-                      <p className="text-xs text-gray-500">needed</p>
-                    </div>
-                  )}
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xl font-bold text-blue-600">{campaign.interest_count}</p>
-                    <p className="text-xs text-gray-500">signed up</p>
-                  </div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              {isToday ? (
+                <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                  <p className="font-headline text-2xl font-extrabold text-primary">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
+                  <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">checked in</p>
                 </div>
-                {isToday && (
-                  <div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${progress >= 1 ? 'bg-green-500' : 'bg-amber-500'}`}
-                        style={{ width: `${progress * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1 text-center">
-                      {progress >= 1
-                        ? 'Minimum reached — ready to submit!'
-                        : `${campaign.min_volunteers - campaign.volunteer_count} more needed to submit`}
-                    </p>
-                  </div>
-                )}
+              ) : (
+                <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                  <p className="font-headline text-2xl font-extrabold text-on-surface">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
+                  <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">needed</p>
+                </div>
+              )}
+              <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                <p className="font-headline text-2xl font-extrabold text-tertiary">{campaign.interest_count}</p>
+                <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">signed up</p>
               </div>
-            );
-          })()}
+            </div>
+            {isToday && campaign.volunteer_count > 0 && (
+              <div>
+                <div className="w-full bg-surface-container-high rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${progress >= 1 ? 'bg-primary' : 'bg-amber-500'}`}
+                    style={{ width: `${progress * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-on-surface-variant font-medium mt-1.5 text-center">
+                  {progress >= 1 ? 'Minimum reached — ready to submit!' : `${campaign.min_volunteers - campaign.volunteer_count} more needed`}
+                </p>
+              </div>
+            )}
+          </div>
 
           {campaign.status === 'Active' && new Date().toISOString().split('T')[0] <= campaign.event_date && (
-            <Button size="lg" variant="secondary" className="w-full" onClick={() => setShowQR(true)}>
+            <button
+              style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '16px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+              className="shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+              onClick={() => setShowQR(true)}
+            >
               Show Check-In QR
-            </Button>
+            </button>
           )}
 
           {canComplete && (
-            <Button size="lg" variant="primary" className="w-full" onClick={() => setShowSubmit(true)}>
+            <button
+              style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+              className="shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+              onClick={() => setShowSubmit(true)}
+            >
               Submit Completion
-            </Button>
+            </button>
           )}
 
           {campaign.status === 'PendingReview' && (
             <>
               {campaignPhotos.length > 0 && (
                 <>
-                  <p className="font-semibold">Submitted Photos</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <p className="font-headline font-bold text-on-surface">Submitted Photos</p>
+                  <div className="grid grid-cols-2 gap-3">
                     {campaignPhotos.map((p, i) => (
-                      <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                      <div key={i} className="aspect-square bg-surface-container rounded-[16px] overflow-hidden">
                         <img src={p} alt="" className="w-full h-full object-cover" />
                       </div>
                     ))}
@@ -566,13 +571,18 @@ export default function NgoPage() {
                 </>
               )}
               {reviewExpired ? (
-                <Button size="lg" variant="primary" className="w-full" onClick={handleAutoRelease}>
-                  Release Funds (review period expired)
-                </Button>
+                <button
+                  style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+                  className="shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+                  onClick={handleAutoRelease}
+                >
+                  Release Funds
+                </button>
               ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                  <p className="text-sm text-amber-800">Waiting for sponsor to review and approve</p>
-                  <p className="text-xs text-amber-600 mt-1">Funds auto-release after 7 days if no response</p>
+                <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-amber-200/50 text-center">
+                  <span className="material-symbols-outlined text-amber-600 text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>pending</span>
+                  <p className="font-headline font-bold text-on-surface">Awaiting Review</p>
+                  <p className="text-xs text-on-surface-variant mt-1">Funds auto-release after 7 days if no response</p>
                 </div>
               )}
             </>
@@ -582,27 +592,29 @@ export default function NgoPage() {
             <>
               {campaignPhotos.length > 0 && (
                 <>
-                  <p className="font-semibold">Event Photos</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <p className="font-headline font-bold text-on-surface">Event Photos</p>
+                  <div className="grid grid-cols-2 gap-3">
                     {campaignPhotos.map((p, i) => (
-                      <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                      <div key={i} className="aspect-square bg-surface-container rounded-[16px] overflow-hidden">
                         <img src={p} alt="" className="w-full h-full object-cover" />
                       </div>
                     ))}
                   </div>
                 </>
               )}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <p className="font-semibold text-green-800">{campaign.funding_required} EURC released</p>
-                <p className="text-sm text-green-600 mt-1">Campaign completed successfully</p>
+              <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-primary/20 text-center shadow-sm">
+                <span className="material-symbols-outlined text-primary text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                <p className="font-headline font-bold text-on-surface">{campaign.funding_required} EURC released</p>
+                <p className="text-xs text-on-surface-variant mt-1">Campaign completed successfully</p>
               </div>
             </>
           )}
 
           {campaign.status === 'Expired' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-red-800">Campaign expired</p>
-              <p className="text-sm text-red-600 mt-1">
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-error/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-error text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+              <p className="font-headline font-bold text-on-surface">Campaign expired</p>
+              <p className="text-xs text-on-surface-variant mt-1">
                 {campaign.sponsor ? 'Sponsor can claim refund from their wallet' : 'No sponsor found before deadline'}
               </p>
             </div>
