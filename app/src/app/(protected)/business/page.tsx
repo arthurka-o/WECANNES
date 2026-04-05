@@ -49,15 +49,6 @@ export default function BusinessPage() {
   }, [refreshKey]);
 
   useEffect(() => {
-    const wallet = session?.user?.walletAddress;
-    if (wallet) {
-      fetch(`/api/user-role?wallet=${wallet}`)
-        .then((r) => r.json())
-        .then((data) => { if (data.name) setBusinessName(data.name); });
-    }
-  }, [session]);
-
-  useEffect(() => {
     if (selectedCampaign !== null) {
       fetch(`/api/campaigns/photos?campaignId=${selectedCampaign}`)
         .then((r) => r.json())
@@ -68,98 +59,129 @@ export default function BusinessPage() {
   }, [selectedCampaign]);
 
   const { poll } = useUserOperationReceipt({ client });
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  useEffect(() => {
+    const wallet = session?.user?.walletAddress;
+    if (wallet) {
+      fetch(`/api/user-role?wallet=${wallet}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.name) setBusinessName(data.name); })
+        .finally(() => setProfileLoaded(true));
+    }
+  }, [session]);
 
   const openCampaigns = campaigns.filter((c) => c.status === 'Open');
-  const isMySponsor = (s: string | null) => s === businessName || (!businessName && s === "Pierre's Restaurant");
+  const isMySponsor = (s: string | null) => s !== null && s !== '' && s === businessName;
   const pendingReview = campaigns.filter((c) => c.status === 'PendingReview' && isMySponsor(c.sponsor));
   const sponsored = campaigns.filter((c) => isMySponsor(c.sponsor) && c.status !== 'Open');
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const handleFund = async (campaignId: number) => {
     const c = campaigns.find((c) => c.id === campaignId);
-    if (!c) return;
+    if (!c || !businessName) return;
+    if (!confirm(`Sponsor this campaign for ${c.funding_required} EURC?`)) return;
 
-    const amount = parseUnits(String(c.funding_required), 6); // EURC has 6 decimals
-    const result = await MiniKit.sendTransaction({
-      chainId: 480,
-      transactions: [
-        {
-          to: EURC_ADDRESS,
-          data: encodeFunctionData({
-            abi: EURC_ABI,
-            functionName: 'approve',
-            args: [CAMPAIGN_ESCROW_ADDRESS, amount],
-          }),
-        },
-        {
-          to: CAMPAIGN_ESCROW_ADDRESS,
-          data: encodeFunctionData({
-            abi: CAMPAIGN_ESCROW_ABI,
-            functionName: 'fundCampaign',
-            args: [BigInt(campaignId)],
-          }),
-        },
-      ],
-    });
-    await poll(result.data.userOpHash);
+    try {
+      const amount = parseUnits(String(c.funding_required), 6);
+      const result = await MiniKit.sendTransaction({
+        chainId: 480,
+        transactions: [
+          {
+            to: EURC_ADDRESS,
+            data: encodeFunctionData({
+              abi: EURC_ABI,
+              functionName: 'approve',
+              args: [CAMPAIGN_ESCROW_ADDRESS, amount],
+            }),
+          },
+          {
+            to: CAMPAIGN_ESCROW_ADDRESS,
+            data: encodeFunctionData({
+              abi: CAMPAIGN_ESCROW_ABI,
+              functionName: 'fundCampaign',
+              args: [BigInt(campaignId)],
+            }),
+          },
+        ],
+      });
+      await poll(result.data.userOpHash);
 
-    await fetch('/api/campaigns/fund', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId, sponsor: businessName }),
-    });
-    setSelectedCampaign(null);
-    setRefreshKey((k) => k + 1);
+      await fetch('/api/campaigns/fund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId, sponsor: businessName }),
+      });
+      setSelectedCampaign(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error('Fund error:', err);
+      alert('Transaction failed. Please try again.');
+    }
   };
 
   const handleApprove = async (campaignId: number) => {
-    const result = await MiniKit.sendTransaction({
-      chainId: 480,
-      transactions: [
-        {
-          to: CAMPAIGN_ESCROW_ADDRESS,
-          data: encodeFunctionData({
-            abi: CAMPAIGN_ESCROW_ABI,
-            functionName: 'approveRelease',
-            args: [BigInt(campaignId)],
-          }),
-        },
-      ],
-    });
-    await poll(result.data.userOpHash);
+    if (!confirm('Approve and release funds to the NGO?')) return;
 
-    await fetch('/api/campaigns/approve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId }),
-    });
-    setSelectedCampaign(null);
-    setRefreshKey((k) => k + 1);
+    try {
+      const result = await MiniKit.sendTransaction({
+        chainId: 480,
+        transactions: [
+          {
+            to: CAMPAIGN_ESCROW_ADDRESS,
+            data: encodeFunctionData({
+              abi: CAMPAIGN_ESCROW_ABI,
+              functionName: 'approveRelease',
+              args: [BigInt(campaignId)],
+            }),
+          },
+        ],
+      });
+      await poll(result.data.userOpHash);
+
+      await fetch('/api/campaigns/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
+      });
+      setSelectedCampaign(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error('Approve error:', err);
+      alert('Transaction failed. Please try again.');
+    }
   };
 
   const handleReject = async (campaignId: number) => {
-    const result = await MiniKit.sendTransaction({
-      chainId: 480,
-      transactions: [
-        {
-          to: CAMPAIGN_ESCROW_ADDRESS,
-          data: encodeFunctionData({
-            abi: CAMPAIGN_ESCROW_ABI,
-            functionName: 'rejectCompletion',
-            args: [BigInt(campaignId)],
-          }),
-        },
-      ],
-    });
-    await poll(result.data.userOpHash);
+    if (!confirm('Reject this submission? The NGO can resubmit.')) return;
 
-    await fetch('/api/campaigns/reject', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ campaignId }),
-    });
-    setSelectedCampaign(null);
-    setRefreshKey((k) => k + 1);
+    try {
+      const result = await MiniKit.sendTransaction({
+        chainId: 480,
+        transactions: [
+          {
+            to: CAMPAIGN_ESCROW_ADDRESS,
+            data: encodeFunctionData({
+              abi: CAMPAIGN_ESCROW_ABI,
+              functionName: 'rejectCompletion',
+              args: [BigInt(campaignId)],
+            }),
+          },
+        ],
+      });
+      await poll(result.data.userOpHash);
+
+      await fetch('/api/campaigns/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId }),
+      });
+      setSelectedCampaign(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      console.error('Reject error:', err);
+      alert('Transaction failed. Please try again.');
+    }
   };
 
   // Campaign detail — Open (sponsor it)

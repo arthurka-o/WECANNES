@@ -476,7 +476,7 @@ export default function VolunteerPage() {
   }, [walletAddress, selectedCampaign, claiming]);
 
   const activeCampaigns = campaigns
-    .filter((c) => c.status === 'Active')
+    .filter((c) => c.status === 'Active' || c.status === 'Open')
     .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
   const completedCampaigns = campaigns.filter(
     (c) => c.status === 'Completed' && checkedInCampaigns.includes(c.id)
@@ -812,7 +812,7 @@ export default function VolunteerPage() {
             onClick={() => setTab('active')}
             className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'active' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
-            Active ({activeCampaigns.length})
+            Upcoming ({activeCampaigns.length})
           </button>
           <button
             onClick={() => setTab('completed')}
@@ -827,7 +827,7 @@ export default function VolunteerPage() {
           const spotsLeft = c.max_volunteers - c.volunteer_count;
           const checkedIn = checkedInCampaigns.includes(c.id);
           const daysUntil = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          const timeLabel = daysUntil <= 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
+          const timeLabel = daysUntil < 0 ? `${-daysUntil}d ago` : daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
           return (
             <button
               key={c.id}
@@ -840,7 +840,7 @@ export default function VolunteerPage() {
               </div>
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span className={daysUntil <= 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
+                <span className={daysUntil < 0 ? 'text-gray-400' : daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
                   {timeLabel}
                 </span>
                 <span>

@@ -47,6 +47,7 @@ function NewCampaignForm({
     setForm((f) => ({ ...f, [field]: value }));
 
   const handleSubmit = async () => {
+    if (!ngoName) return;
     setSubmitting(true);
     try {
       // Create in SQLite first to get the canonical ID
@@ -55,7 +56,7 @@ function NewCampaignForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          ngo: ngoName || 'OceanCare',
+          ngo: ngoName,
           funding_required: Number(form.funding_required),
           min_volunteers: Number(form.min_volunteers),
           max_volunteers: Number(form.max_volunteers),
@@ -64,36 +65,43 @@ function NewCampaignForm({
       const { id: campaignId } = await res.json();
 
       // Create on-chain with the same ID
-      const now = new Date();
-      const sponsorshipDeadline = Math.floor(new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime() / 1000);
-      const eventDeadline = Math.floor(new Date(new Date(form.event_date).getTime() + 30 * 24 * 60 * 60 * 1000).getTime() / 1000);
-      const fundingAmount = parseUnits(form.funding_required, 6); // EURC 6 decimals
+      try {
+        const now = new Date();
+        const sponsorshipDeadline = Math.floor(new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).getTime() / 1000);
+        const eventDeadline = Math.floor(new Date(new Date(form.event_date).getTime() + 30 * 24 * 60 * 60 * 1000).getTime() / 1000);
+        const fundingAmount = parseUnits(form.funding_required, 6);
 
-      const result = await MiniKit.sendTransaction({
-        chainId: 480,
-        transactions: [
-          {
-            to: CAMPAIGN_ESCROW_ADDRESS,
-            data: encodeFunctionData({
-              abi: CAMPAIGN_ESCROW_ABI,
-              functionName: 'createCampaign',
-              args: [
-                BigInt(campaignId),
-                fundingAmount,
-                BigInt(form.min_volunteers),
-                BigInt(sponsorshipDeadline),
-                BigInt(eventDeadline),
-              ],
-            }),
-          },
-        ],
-      });
-      await poll(result.data.userOpHash);
+        const result = await MiniKit.sendTransaction({
+          chainId: 480,
+          transactions: [
+            {
+              to: CAMPAIGN_ESCROW_ADDRESS,
+              data: encodeFunctionData({
+                abi: CAMPAIGN_ESCROW_ABI,
+                functionName: 'createCampaign',
+                args: [
+                  BigInt(campaignId),
+                  fundingAmount,
+                  BigInt(form.min_volunteers),
+                  BigInt(sponsorshipDeadline),
+                  BigInt(eventDeadline),
+                ],
+              }),
+            },
+          ],
+        });
+        await poll(result.data.userOpHash);
+      } catch (err) {
+        console.error('On-chain campaign creation failed:', err);
+        // SQLite campaign still created — works offline, on-chain can be retried
+      }
+
+      onCreated();
     } catch (err) {
       console.error('Create campaign error:', err);
+      alert('Failed to create campaign. Please try again.');
     }
     setSubmitting(false);
-    onCreated();
   };
 
   return (
@@ -189,7 +197,7 @@ export default function NgoPage() {
     }
   }, [session]);
 
-  const ngoCampaigns = campaigns.filter((c) => c.ngo === ngoName || c.ngo === 'OceanCare');
+  const ngoCampaigns = ngoName ? campaigns.filter((c) => c.ngo === ngoName) : [];
   const campaign = selectedCampaign !== null ? campaigns.find((c) => c.id === selectedCampaign) : null;
 
   const [qrValue, setQrValue] = useState<string | null>(null);
@@ -307,23 +315,7 @@ export default function NgoPage() {
             className="w-full"
             onClick={async () => {
               try {
-                // Submit completion on-chain
-                const result = await MiniKit.sendTransaction({
-                  chainId: 480,
-                  transactions: [
-                    {
-                      to: CAMPAIGN_ESCROW_ADDRESS,
-                      data: encodeFunctionData({
-                        abi: CAMPAIGN_ESCROW_ABI,
-                        functionName: 'submitCompletion',
-                        args: [BigInt(campaign.id)],
-                      }),
-                    },
-                  ],
-                });
-                await poll(result.data.userOpHash);
-
-                // Upload photos + update SQLite
+                // Upload photos + update SQLite first
                 const formData = new FormData();
                 formData.append('campaignId', String(campaign.id));
                 selectedPhotos.forEach((f) => formData.append('photos', f));
@@ -332,17 +324,40 @@ export default function NgoPage() {
                   method: 'POST',
                   body: formData,
                 });
-                if (res.ok) {
-                  setSelectedPhotos([]);
-                  setShowSubmit(false);
-                  setSelectedCampaign(null);
-                  setRefreshKey((k) => k + 1);
-                } else {
+                if (!res.ok) {
                   const data = await res.json();
                   alert(data.error);
+                  return;
                 }
+
+                // Then submit on-chain
+                try {
+                  const result = await MiniKit.sendTransaction({
+                    chainId: 480,
+                    transactions: [
+                      {
+                        to: CAMPAIGN_ESCROW_ADDRESS,
+                        data: encodeFunctionData({
+                          abi: CAMPAIGN_ESCROW_ABI,
+                          functionName: 'submitCompletion',
+                          args: [BigInt(campaign.id)],
+                        }),
+                      },
+                    ],
+                  });
+                  await poll(result.data.userOpHash);
+                } catch (err) {
+                  console.error('On-chain submit failed:', err);
+                  // SQLite already updated — on-chain can be retried
+                }
+
+                setSelectedPhotos([]);
+                setShowSubmit(false);
+                setSelectedCampaign(null);
+                setRefreshKey((k) => k + 1);
               } catch (err) {
                 console.error('Submit completion error:', err);
+                alert('Failed to submit. Please try again.');
               }
             }}
           >
