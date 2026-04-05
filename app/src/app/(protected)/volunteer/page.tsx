@@ -283,14 +283,12 @@ function ProfileView({
   goals,
   checkedInCampaigns,
   claimedCampaigns,
-  rewards,
   walletAddress,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
   checkedInCampaigns: number[];
   claimedCampaigns: number[];
-  rewards: RewardSummary[];
   walletAddress?: string;
 }) {
   const router = useRouter();
@@ -411,7 +409,6 @@ function ProfileView({
 // --- Main Page ---
 
 export default function VolunteerPage() {
-  const router = useRouter();
   const { data: session } = useSession();
   const [mainTab, setMainTab] = useState('campaigns');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);

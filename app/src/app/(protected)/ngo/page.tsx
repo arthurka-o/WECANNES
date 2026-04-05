@@ -168,7 +168,6 @@ export default function NgoPage() {
   const { data: session } = useSession();
   const { poll } = useUserOperationReceipt({ client });
   const [ngoName, setNgoName] = useState('');
-  const [ngoEmail, setNgoEmail] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -192,7 +191,6 @@ export default function NgoPage() {
         .then((r) => r.json())
         .then((data) => {
           if (data.name) setNgoName(data.name);
-          if (data.email) setNgoEmail(data.email);
         });
     }
   }, [session]);

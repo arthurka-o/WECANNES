@@ -59,15 +59,13 @@ export default function BusinessPage() {
   }, [selectedCampaign]);
 
   const { poll } = useUserOperationReceipt({ client });
-  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     const wallet = session?.user?.walletAddress;
     if (wallet) {
       fetch(`/api/user-role?wallet=${wallet}`)
         .then((r) => r.json())
-        .then((data) => { if (data.name) setBusinessName(data.name); })
-        .finally(() => setProfileLoaded(true));
+        .then((data) => { if (data.name) setBusinessName(data.name); });
     }
   }, [session]);
 
@@ -429,7 +427,6 @@ export default function BusinessPage() {
             <p className="text-sm text-gray-500">Campaigns you sponsored</p>
             {sponsored.length === 0 && <p className="text-center text-gray-400 mt-4">No sponsored campaigns yet</p>}
             {sponsored.map((c) => {
-              const goal = goals.find((g) => g.id === c.goal_id);
               return (
                 <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-start">
