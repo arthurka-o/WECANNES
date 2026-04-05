@@ -12,7 +12,7 @@ import { Compass as CompassSolid } from '@worldcoin/mini-apps-ui-kit-react/icons
 import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { User } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { User as UserSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
-import { Html5Qrcode } from 'html5-qrcode';
+import jsQR from 'jsqr';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -25,79 +25,118 @@ function QrScanner({
   campaignId,
   onSuccess,
   onError,
+  onClose,
 }: {
   campaignId: number;
   onSuccess: () => void;
   onError: (msg: string) => void;
+  onClose: () => void;
 }) {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number>(0);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const scanner = new Html5Qrcode('qr-reader');
-    scannerRef.current = scanner;
+    let stopped = false;
 
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (text) => {
-          // TODO: remove debug bypass — accept any QR code for testing
-          await scanner.stop();
-          onSuccess();
-          return;
+    const start = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
 
-          // Original QR validation logic:
-          // const parts = text.split(':');
-          // if (parts.length !== 3 || parts[0] !== 'civic') {
-          //   await scanner.stop();
-          //   onError('Not a valid check-in QR code');
-          //   return;
-          // }
-          // const scannedCampaignId = parseInt(parts[1]);
-          // const token = parts[2];
-          //
-          // if (scannedCampaignId !== campaignId) {
-          //   await scanner.stop();
-          //   onError('Wrong campaign QR code');
-          //   return;
-          // }
-          //
-          // const res = await fetch('/api/checkin-token', {
-          //   method: 'PUT',
-          //   headers: { 'Content-Type': 'application/json' },
-          //   body: JSON.stringify({ campaignId: scannedCampaignId, token }),
-          // });
-          // const data = await res.json();
-          // await scanner.stop();
-          //
-          // if (data.valid) {
-          //   onSuccess();
-          // } else {
-          //   onError('Invalid or expired QR code');
-          // }
-        },
-        () => {},
-      )
-      .then(() => setScanning(true))
-      .catch(() => onError('Could not access camera'));
+        streamRef.current = stream;
+        const video = videoRef.current!;
+        video.srcObject = stream;
+        await video.play();
+        setReady(true);
 
-    return () => {
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(() => {});
+        const canvas = canvasRef.current!;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+
+        const scan = () => {
+          if (stopped) return;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+              // TODO: remove debug bypass — accept any QR code for testing
+              stopped = true;
+              stream.getTracks().forEach(t => t.stop());
+              onSuccess();
+              return;
+
+              // Original QR validation logic:
+              // const parts = code.data.split(':');
+              // if (parts.length === 3 && parts[0] === 'civic') {
+              //   const scannedCampaignId = parseInt(parts[1]);
+              //   const token = parts[2];
+              //   if (scannedCampaignId === campaignId) {
+              //     stopped = true;
+              //     stream.getTracks().forEach(t => t.stop());
+              //     fetch('/api/checkin-token', {
+              //       method: 'PUT',
+              //       headers: { 'Content-Type': 'application/json' },
+              //       body: JSON.stringify({ campaignId: scannedCampaignId, token }),
+              //     }).then(r => r.json()).then(data => {
+              //       if (data.valid) onSuccess();
+              //       else onError('Invalid or expired QR code');
+              //     });
+              //     return;
+              //   }
+              // }
+            }
+          }
+          rafRef.current = requestAnimationFrame(scan);
+        };
+        rafRef.current = requestAnimationFrame(scan);
+      } catch {
+        if (!stopped) onError('Could not access camera');
       }
     };
-  }, [campaignId, onSuccess, onError]);
+
+    start();
+
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(rafRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, [campaignId]);
 
   return (
-    <div className="space-y-3">
-      <div id="qr-reader" className="rounded-xl overflow-hidden" />
-      {!scanning && (
-        <p className="text-sm text-gray-400 text-center">Starting camera...</p>
+    <div className="fixed inset-0 z-50 bg-black">
+      <button
+        onClick={() => {
+          streamRef.current?.getTracks().forEach(t => t.stop());
+          cancelAnimationFrame(rafRef.current);
+          onClose();
+        }}
+        className="absolute top-6 right-4 z-10 bg-black/60 backdrop-blur rounded-full w-12 h-12 flex items-center justify-center text-white text-2xl font-bold"
+      >
+        &times;
+      </button>
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover"
+        playsInline
+        muted
+      />
+      <canvas ref={canvasRef} className="hidden" />
+      {!ready && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <p className="text-gray-400 text-sm">Starting camera...</p>
+        </div>
       )}
-      <p className="text-sm text-gray-600 text-center">
-        Scan the QR code from the NGO coordinator
-      </p>
+      <div className="absolute bottom-0 left-0 right-0 p-6 text-center">
+        <p className="text-white/60 text-sm">Scan the QR code from the NGO coordinator</p>
+      </div>
     </div>
   );
 }
@@ -650,6 +689,7 @@ export default function VolunteerPage() {
                 alert(msg);
                 setStep('browse');
               }}
+              onClose={() => setStep('browse')}
             />
           )}
 
