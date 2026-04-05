@@ -55,10 +55,15 @@ function NewGoalForm({ onCreated, onBack }: { onCreated: () => void; onBack: () 
   );
 }
 
-function AddRewardForm({ onCreated, onBack }: { onCreated: () => void; onBack: () => void }) {
+function AddRewardForm({ onCreated, onBack, existingNames }: { onCreated: () => void; onBack: () => void; existingNames: string[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [name, setName] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+
+  const suggestions = existingNames.filter(
+    (n) => n.toLowerCase().includes(name.toLowerCase()) && n.toLowerCase() !== name.toLowerCase()
+  );
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -77,9 +82,29 @@ function AddRewardForm({ onCreated, onBack }: { onCreated: () => void; onBack: (
         <TopBar title="Add Rewards" startAdornment={<button onClick={onBack}>← Back</button>} />
       </Page.Header>
       <Page.Main className="flex flex-col gap-4">
-        <div>
+        <div className="relative">
           <label className="text-sm font-semibold block mb-1">Reward name</label>
-          <input className="w-full border rounded-lg p-3" placeholder="e.g. Museum Pass" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            className="w-full border rounded-lg p-3"
+            placeholder="e.g. Museum Pass"
+            value={name}
+            onChange={(e) => { setName(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg overflow-hidden">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                  onMouseDown={() => { setName(s); setShowSuggestions(false); }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <label className="text-sm font-semibold block mb-1">Ticket files ({files.length} selected)</label>
@@ -142,7 +167,7 @@ export default function CityPage() {
 
   // Add reward form
   if (view === 'addReward') {
-    return <AddRewardForm onCreated={() => { setView('rewards'); setRefreshKey((k) => k + 1); }} onBack={() => setView('rewards')} />;
+    return <AddRewardForm onCreated={() => { setView('rewards'); setRefreshKey((k) => k + 1); }} onBack={() => setView('rewards')} existingNames={rewards.map((r) => r.name)} />;
   }
 
   // Global rewards management
