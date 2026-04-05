@@ -407,31 +407,33 @@ export default function BusinessPage() {
   // List view with tabs
   return (
     <>
-      <Page.Header className="p-0">
-        <TopBar
-          title={businessName || 'Business'}
-          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
-        />
-        <div className="flex gap-1 px-4 pb-2">
+      <Page.Header>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">{businessName || 'Business'}</h2>
+          <button onClick={() => router.push('/debug')} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+            <span className="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+        <nav className="flex gap-1.5">
           <button
             onClick={() => setTab('browse')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'browse' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'browse' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Available ({openCampaigns.length})
+            Available
           </button>
           <button
             onClick={() => setTab('review')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'review' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'review' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Review ({pendingReview.length})
+            Review
           </button>
           <button
             onClick={() => setTab('sponsored')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'sponsored' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'sponsored' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Sponsored ({sponsored.length})
+            Sponsored
           </button>
-        </div>
+        </nav>
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
         {tab === 'browse' && (
@@ -441,10 +443,13 @@ export default function BusinessPage() {
             {openCampaigns.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold">{c.funding_required} EURC</span>
-                    {c.interest_count > 0 && <span className="text-blue-600">{c.interest_count} signed up</span>}
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} ngo={c.ngo} onClick={() => setSelectedCampaign(c.id)}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-primary font-bold text-sm">{c.funding_required} EURC</span>
+                      {c.interest_count > 0 && <span className="text-[10px] text-on-surface-variant font-medium uppercase mt-0.5">{c.interest_count} signed up</span>}
+                    </div>
+                    <span className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">Sponsor</span>
                   </div>
                 </CampaignCard>
               );
@@ -459,9 +464,11 @@ export default function BusinessPage() {
             {pendingReview.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
-                  <p className="text-sm text-gray-600">{c.volunteer_count} checked in</p>
-                  <p className="text-sm font-semibold">{c.funding_required} EURC to release</p>
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} ngo={c.ngo} onClick={() => setSelectedCampaign(c.id)}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-primary font-bold text-sm">{c.funding_required} EURC</span>
+                    <span className="px-4 py-2 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold uppercase tracking-wider">Review</span>
+                  </div>
                 </CampaignCard>
               );
             })}
@@ -475,10 +482,15 @@ export default function BusinessPage() {
             {sponsored.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
-                  <div className="flex justify-between text-sm">
-                    <span className="font-semibold">{c.funding_required} EURC</span>
-                    <Chip label={c.status} />
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} ngo={c.ngo} onClick={() => setSelectedCampaign(c.id)}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-primary font-bold text-sm">{c.funding_required} EURC</span>
+                    <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider ${
+                      c.status === 'Completed' ? 'bg-primary-container/20 text-primary' :
+                      c.status === 'Active' ? 'bg-blue-100 text-blue-800' :
+                      c.status === 'Expired' ? 'bg-red-100 text-red-800' :
+                      'bg-surface-container text-on-surface-variant'
+                    }`}>{c.status}</span>
                   </div>
                 </CampaignCard>
               );

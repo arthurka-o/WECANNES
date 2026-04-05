@@ -562,11 +562,23 @@ export default function VolunteerPage() {
   const showBottomTabs = selectedCampaign === null && !showRewards;
 
   const bottomTabs = (
-    <Page.Footer className="border-t bg-white pb-3">
-      <Tabs value={mainTab} onValueChange={setMainTab}>
-        <TabItem value="campaigns" icon={<Compass />} altIcon={<CompassSolid />} label="Campaigns" />
-        <TabItem value="profile" icon={<User />} altIcon={<UserSolid />} label="Profile" />
-      </Tabs>
+    <Page.Footer>
+      <div className="flex justify-around items-center">
+        <button
+          onClick={() => setMainTab('campaigns')}
+          className={`flex flex-col items-center justify-center px-5 py-2.5 rounded-xl transition-all ${mainTab === 'campaigns' ? 'bg-primary text-on-primary' : 'text-on-surface-variant'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: mainTab === 'campaigns' ? "'FILL' 1" : "'FILL' 0" }}>explore</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider mt-1">Campaigns</span>
+        </button>
+        <button
+          onClick={() => setMainTab('profile')}
+          className={`flex flex-col items-center justify-center px-5 py-2.5 rounded-xl transition-all ${mainTab === 'profile' ? 'bg-primary text-on-primary' : 'text-on-surface-variant'}`}
+        >
+          <span className="material-symbols-outlined" style={{ fontVariationSettings: mainTab === 'profile' ? "'FILL' 1" : "'FILL' 0" }}>account_circle</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider mt-1">Profile</span>
+        </button>
+      </div>
     </Page.Footer>
   );
 
@@ -930,45 +942,40 @@ export default function VolunteerPage() {
   // --- Campaign list with tabs ---
   return (
     <Page>
-      <Page.Header className="p-0">
-        <TopBar
-          title="Campaigns"
-          endAdornment={
-            <button onClick={() => setShowRewards(true)} className="relative">
-              <span className="text-xl">🎁</span>
-              <span className="absolute -top-1 -right-2 bg-amber-500 text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {totalRewardsLeft}
-              </span>
-            </button>
-          }
-        />
-        <div className="flex gap-1 px-4 pb-2">
+      <Page.Header>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">Campaigns</h2>
+          <button onClick={() => setShowRewards(true)} className="w-10 h-10 flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined">redeem</span>
+          </button>
+        </div>
+        <nav className="flex gap-1.5">
           <button
             onClick={() => setTab('upcoming')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'upcoming' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'upcoming' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Upcoming ({upcomingCampaigns.length})
+            Upcoming
           </button>
           <button
             onClick={() => setTab('current')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'current' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'current' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Current ({currentCampaigns.length})
+            Current
           </button>
           <button
             onClick={() => setTab('completed')}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'completed' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 rounded-full text-xs font-semibold transition-colors ${tab === 'completed' ? 'bg-on-surface text-white' : 'bg-surface-container-low text-on-surface-variant'}`}
           >
-            Completed ({completedCampaigns.length})
+            Completed
           </button>
-        </div>
+        </nav>
       </Page.Header>
-      <Page.Main className="flex flex-col gap-3">
+      <Page.Main className="flex flex-col gap-5 pt-4">
 
         {tab === 'upcoming' && upcomingCampaigns.map((c) => {
           const g = goals.find((g) => g.id === c.goal_id);
           const daysUntil = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          const timeLabel = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
+          const timeLabel = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `${daysUntil}d`;
           const dateLabel = new Date(c.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
           const isSignedUp = interestedCampaigns.includes(c.id);
           return (
@@ -976,19 +983,25 @@ export default function VolunteerPage() {
               key={c.id}
               title={c.title}
               category={g?.category ?? ''}
-              location={c.location}
+              location={`${dateLabel} · ${timeLabel}`}
               coverImage={c.cover_image}
+              ngo={c.ngo}
+              sponsor={c.sponsor}
               onClick={() => setSelectedCampaign(c.id)}
             >
-              <div className="flex justify-between text-sm text-gray-500">
-                <span className={daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
-                  {timeLabel} · {dateLabel}
-                </span>
-                {isSignedUp && <span className="text-blue-600">Signed up</span>}
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-primary font-bold text-sm leading-none">{c.interest_count} signed up</span>
+                  <span className="text-[10px] text-on-surface-variant font-medium uppercase mt-1">
+                    {c.max_volunteers - c.interest_count} spots left
+                  </span>
+                </div>
+                {isSignedUp ? (
+                  <span className="px-4 py-2 rounded-xl bg-surface-container text-primary text-xs font-bold uppercase tracking-wider">Joined</span>
+                ) : (
+                  <span className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">Join Mission</span>
+                )}
               </div>
-              {c.interest_count > 0 && (
-                <p className="text-xs text-gray-400">{c.interest_count} signed up</p>
-              )}
             </CampaignCard>
           );
         })}
@@ -1006,11 +1019,13 @@ export default function VolunteerPage() {
               category={g?.category ?? ''}
               location={c.location}
               coverImage={c.cover_image}
+              ngo={c.ngo}
+              sponsor={c.sponsor}
               onClick={() => setSelectedCampaign(c.id)}
             >
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>{c.volunteer_count} checked in</span>
-                <span className="text-green-600">You&apos;re in</span>
+              <div className="flex items-center justify-between">
+                <span className="text-primary font-bold text-sm">{c.volunteer_count} checked in</span>
+                <span className="px-4 py-2 rounded-xl bg-primary-container/20 text-primary text-xs font-bold uppercase tracking-wider">Active</span>
               </div>
             </CampaignCard>
           );
@@ -1030,14 +1045,17 @@ export default function VolunteerPage() {
               category={g?.category ?? ''}
               location={c.location}
               coverImage={c.cover_image}
+              ngo={c.ngo}
               onClick={() => setSelectedCampaign(c.id)}
             >
-              <p className="text-sm">
-                {claimed
-                  ? <span className="text-green-600">Reward claimed</span>
-                  : <span className="text-amber-600">Claim your reward</span>
-                }
-              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-primary font-bold text-sm">{c.volunteer_count} participated</span>
+                {claimed ? (
+                  <span className="px-4 py-2 rounded-xl bg-primary-container/20 text-primary text-xs font-bold uppercase tracking-wider">Claimed</span>
+                ) : (
+                  <span className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">Claim Reward</span>
+                )}
+              </div>
             </CampaignCard>
           );
         })}

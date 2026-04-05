@@ -594,31 +594,35 @@ export default function NgoPage() {
   // Campaign list
   return (
     <>
-      <Page.Header className="p-0">
-        <TopBar
-          title={ngoName || 'NGO'}
-          endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
-        />
-      </Page.Header>
-      <Page.Main className="flex flex-col gap-3">
+      <Page.Header>
         <div className="flex justify-between items-center">
-          <p className="font-semibold">Your Campaigns</p>
-          <Button size="sm" variant="secondary" onClick={() => setShowNewCampaign(true)}>
-            + New Campaign
-          </Button>
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight text-on-surface">{ngoName || 'NGO'}</h2>
+          <button onClick={() => router.push('/debug')} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+            <span className="material-symbols-outlined">settings</span>
+          </button>
+        </div>
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-5 pt-2">
+        <div className="flex justify-between items-center">
+          <p className="font-headline font-bold text-on-surface">Your Campaigns</p>
+          <button onClick={() => setShowNewCampaign(true)} className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">
+            + New
+          </button>
         </div>
 
         {ngoCampaigns.map((c) => {
           const goal = goals.find((g) => g.id === c.goal_id);
           return (
-            <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
-              <div className="flex justify-between text-sm">
-                <span>
-                  {c.interest_count > 0 ? `${c.interest_count} signed up · ` : ''}
-                  {c.volunteer_count > 0 ? `${c.volunteer_count} checked in · ` : ''}
-                  {c.funding_required} EURC
-                </span>
-                <Chip label={c.status} />
+            <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} sponsor={c.sponsor} onClick={() => setSelectedCampaign(c.id)}>
+              <div className="flex items-center justify-between">
+                <span className="text-primary font-bold text-sm">{c.funding_required} EURC</span>
+                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider ${
+                  c.status === 'Completed' ? 'bg-primary-container/20 text-primary' :
+                  c.status === 'Active' ? 'bg-blue-100 text-blue-800' :
+                  c.status === 'Open' ? 'bg-amber-100 text-amber-800' :
+                  c.status === 'PendingReview' ? 'bg-purple-100 text-purple-800' :
+                  'bg-surface-container text-on-surface-variant'
+                }`}>{c.status}</span>
               </div>
             </CampaignCard>
           );
