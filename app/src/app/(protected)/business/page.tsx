@@ -400,29 +400,28 @@ export default function BusinessPage() {
           title={businessName || 'Business'}
           endAdornment={<button onClick={() => router.push('/debug')}><Settings /></button>}
         />
-      </Page.Header>
-      <Page.Main className="flex flex-col gap-3">
-        <div className="flex gap-2">
+        <div className="flex gap-1 px-4 pb-2">
           <button
             onClick={() => setTab('browse')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'browse' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'browse' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
             Available ({openCampaigns.length})
           </button>
           <button
             onClick={() => setTab('review')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'review' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'review' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
             Review ({pendingReview.length})
           </button>
           <button
             onClick={() => setTab('sponsored')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'sponsored' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'sponsored' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
             Sponsored ({sponsored.length})
           </button>
         </div>
-
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-3">
         {tab === 'browse' && (
           <>
             <p className="text-sm text-gray-500">Campaigns looking for sponsors</p>

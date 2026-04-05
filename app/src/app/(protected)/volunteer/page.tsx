@@ -895,9 +895,7 @@ export default function VolunteerPage() {
             </button>
           }
         />
-      </Page.Header>
-      <Page.Main className="flex flex-col gap-3">
-        <div className="flex gap-1">
+        <div className="flex gap-1 px-4 pb-2">
           <button
             onClick={() => setTab('upcoming')}
             className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'upcoming' ? 'bg-black text-white' : 'bg-gray-100'}`}
@@ -917,6 +915,8 @@ export default function VolunteerPage() {
             Completed ({completedCampaigns.length})
           </button>
         </div>
+      </Page.Header>
+      <Page.Main className="flex flex-col gap-3">
 
         {tab === 'upcoming' && upcomingCampaigns.map((c) => {
           const g = goals.find((g) => g.id === c.goal_id);
