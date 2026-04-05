@@ -787,14 +787,18 @@ export default function VolunteerPage() {
             <p className="text-sm">
               <span className="font-semibold">Organizer:</span> {campaign.ngo}
             </p>
-            <p className="text-sm">
-              <span className="font-semibold">Volunteers:</span>{' '}
-              {campaign.volunteer_count}/{campaign.max_volunteers}
-            </p>
-            <p className="text-sm">
-              <span className="font-semibold">Signed up:</span>{' '}
-              {campaign.interest_count} verified
-            </p>
+            {campaign.interest_count > 0 && (
+              <p className="text-sm">
+                <span className="font-semibold">Signed up:</span>{' '}
+                {campaign.interest_count}
+              </p>
+            )}
+            {isEventDay && (
+              <p className="text-sm">
+                <span className="font-semibold">Volunteers:</span>{' '}
+                {campaign.volunteer_count}/{campaign.max_volunteers} checked in
+              </p>
+            )}
             <p className="text-sm">
               <span className="font-semibold">Event date:</span> {campaign.event_date}
             </p>
