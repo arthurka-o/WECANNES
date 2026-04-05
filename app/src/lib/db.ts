@@ -364,15 +364,16 @@ export function createCampaign(data: {
   max_volunteers: number;
   event_date: string;
   location: string;
+  cover_image?: string;
 }): number {
   const now = new Date().toISOString().split('T')[0];
   const sponsorshipDeadline = addMonths(now, 1);
   const eventDeadline = addMonths(data.event_date, 1);
 
   const result = db.prepare(`
-    INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')
-  `).run(data.goal_id, data.title, data.description, data.ngo, data.ngo_contact ?? null, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location);
+    INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status, cover_image)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?)
+  `).run(data.goal_id, data.title, data.description, data.ngo, data.ngo_contact ?? null, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location, data.cover_image ?? null);
   return Number(result.lastInsertRowid);
 }
 
@@ -417,6 +418,7 @@ function seedTest(): void {
   insertGoal.run('Beach Cleanup — Summer 2026', 'Environment', 'Clean up beaches before tourist season');
   insertGoal.run('Youth Literacy Program', 'Education', 'Improve reading skills for children aged 6-12');
   insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
+  insertGoal.run('Local Food Impact Program', 'Environment', 'Strengthening local food supply chains through community-driven farming and sustainable practices.');
 
   const insertReward = db.prepare('INSERT INTO civic_rewards (name, file_path) VALUES (?, ?)');
   for (let i = 0; i < 5; i++) insertReward.run('Free Ice Cream', '/icecream.png');
@@ -429,6 +431,7 @@ function seedDemo(): void {
   insertGoal.run('Beach Cleanup — Summer 2026', 'Environment', 'Clean up beaches before tourist season');
   insertGoal.run('Youth Literacy Program', 'Education', 'Improve reading skills for children aged 6-12');
   insertGoal.run('Homeless Shelter Support', 'Social', 'Provide meals and supplies to local shelters');
+  insertGoal.run('Local Food Impact Program', 'Environment', 'Strengthening local food supply chains through community-driven farming and sustainable practices.');
 
   // --- Campaigns (single business: Pierre's Restaurant) ---
   const ins = db.prepare(`
@@ -439,7 +442,7 @@ function seedDemo(): void {
   // 1: Open, future event — business can sponsor, volunteers sign up
   ins.run(1, 'Plage du Midi Cleanup',
     '2km beach cleanup before summer season. Equipment provided.',
-    'OceanCare', 'contact@oceancare.org', null,
+    'Food Policy Council', 'info@foodcouncil.com', null,
     500, 20, 40, '2026-06-15', '2026-05-15', '2026-07-15', 'Open', 'Plage du Midi, Cannes', '/beach-1.avif');
 
   // 2: Open, future event — another sponsorship opportunity, has signups
@@ -451,19 +454,19 @@ function seedDemo(): void {
   // 3: Active (Pierre's), future event — volunteers can sign up but not check in
   ins.run(1, 'Port Canto Shore Cleanup',
     'Cleanup around the marina area. Gloves and bags provided.',
-    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    'Food Policy Council', 'info@foodcouncil.com', "Pierre's Restaurant",
     350, 15, 30, '2026-05-10', '2026-04-05', '2026-06-10', 'Active', 'Port Canto, Cannes', '/beach-2.avif');
 
   // 4: Active (Pierre's), event is TODAY — volunteers can check in
   ins.run(1, 'La Croisette Morning Cleanup',
     'Early morning cleanup along the Croisette promenade.',
-    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    'Food Policy Council', 'info@foodcouncil.com', "Pierre's Restaurant",
     300, 10, 20, '2026-04-05', '2026-03-05', '2026-05-05', 'Active', 'La Croisette, Cannes', '/beach-3.avif');
 
   // 5: Active (Pierre's), past event — NGO can submit (enough volunteers)
   ins.run(1, 'Mouré Rouge Beach Cleanup',
     'Clear plastic waste from Mouré Rouge beach before nesting season.',
-    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    'Food Policy Council', 'info@foodcouncil.com', "Pierre's Restaurant",
     400, 10, 25, '2026-04-01', '2026-03-01', '2026-05-01', 'Active', 'Plage du Mouré Rouge, Cannes', '/beach-1.avif');
 
   // 6: PendingReview (Pierre's) — business reviews photos
@@ -481,13 +484,13 @@ function seedDemo(): void {
   // 8: Completed (Pierre's) — another completed, demo volunteer already claimed
   ins.run(1, 'Îles de Lérins Beach Restoration',
     'Restore beach areas on Sainte-Marguerite island.',
-    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    'Food Policy Council', 'info@foodcouncil.com', "Pierre's Restaurant",
     450, 15, 25, '2026-02-20', '2026-01-20', '2026-03-20', 'Completed', 'Île Sainte-Marguerite, Cannes', '/beach-2.avif');
 
   // 9: Expired (Pierre's) — sponsored but deadline passed, refund
   ins.run(1, 'Spring Coast Sweep',
     'Early spring cleanup of the eastern coast.',
-    'OceanCare', 'contact@oceancare.org', "Pierre's Restaurant",
+    'Food Policy Council', 'info@foodcouncil.com', "Pierre's Restaurant",
     250, 10, 20, '2026-02-01', '2026-01-01', '2026-03-01', 'Expired', 'Plage du Mouré Rouge, Cannes', '/beach-3.avif');
 
   // 10: Expired — never got a sponsor

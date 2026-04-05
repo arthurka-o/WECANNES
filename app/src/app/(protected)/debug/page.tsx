@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 // TODO: remove this page before production
 const ROLES = [
   { id: 'volunteer', label: 'Volunteer', name: undefined, email: undefined },
-  { id: 'ngo', label: 'NGO (OceanCare)', name: 'OceanCare', email: 'contact@oceancare.org' },
+  { id: 'ngo', label: 'NGO (Food Policy Council)', name: 'Food Policy Council', email: 'info@foodcouncil.com' },
   { id: 'business', label: 'Business (Pierre\'s)', name: "Pierre's Restaurant", email: undefined },
   { id: 'city', label: 'City', name: undefined, email: undefined },
 ];

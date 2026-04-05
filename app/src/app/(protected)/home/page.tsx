@@ -41,7 +41,7 @@ const ROLES = [
     label: 'NGO',
     description: 'Create campaigns, organize events, submit results.',
     fields: [
-      { key: 'name', label: 'Organization name', placeholder: 'e.g. OceanCare' },
+      { key: 'name', label: 'Organization name', placeholder: 'e.g. Food Policy Council' },
       { key: 'email', label: 'Contact email', placeholder: 'e.g. contact@oceancare.org' },
     ],
   },

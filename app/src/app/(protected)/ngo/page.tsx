@@ -36,13 +36,14 @@ function NewCampaignForm({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const { poll } = useUserOperationReceipt({ client });
+  const [coverPhoto, setCoverPhoto] = useState<File | null>(null);
   const [form, setForm] = useState({
     goal_id: goals[0]?.id ?? 1,
     title: '',
     description: '',
     funding_required: '',
-    min_volunteers: '',
-    max_volunteers: '',
+    min_volunteers: 10,
+    max_volunteers: 30,
     event_date: '',
     location: '',
   });
@@ -55,17 +56,22 @@ function NewCampaignForm({
     setSubmitting(true);
     try {
       // Create in SQLite first to get the canonical ID
+      const formData = new FormData();
+      formData.append('goal_id', String(form.goal_id));
+      formData.append('title', form.title);
+      formData.append('description', form.description);
+      formData.append('location', form.location);
+      formData.append('event_date', form.event_date);
+      formData.append('funding_required', form.funding_required);
+      formData.append('min_volunteers', String(form.min_volunteers));
+      formData.append('max_volunteers', String(form.max_volunteers));
+      formData.append('ngo', ngoName);
+      if (ngoEmail) formData.append('ngo_contact', ngoEmail);
+      if (coverPhoto) formData.append('cover_image', coverPhoto);
+
       const res = await fetch('/api/campaigns', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          ngo: ngoName,
-          ngo_contact: ngoEmail || undefined,
-          funding_required: Number(form.funding_required),
-          min_volunteers: Number(form.min_volunteers),
-          max_volunteers: Number(form.max_volunteers),
-        }),
+        body: formData,
       });
       const { id: campaignId } = await res.json();
 
@@ -123,6 +129,37 @@ function NewCampaignForm({
         </div>
       </Page.Header>
       <Page.Main className="flex flex-col gap-4 pt-2">
+        {/* Cover photo */}
+        <div>
+          <label className={labelStyle}>Cover photo</label>
+          {coverPhoto ? (
+            <div className="relative h-40 rounded-[16px] overflow-hidden">
+              <img src={URL.createObjectURL(coverPhoto)} alt="" className="w-full h-full object-cover" />
+              <button
+                onClick={() => setCoverPhoto(null)}
+                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white text-sm"
+              >
+                &times;
+              </button>
+            </div>
+          ) : (
+            <label className="block bg-surface-container-lowest border-2 border-dashed border-outline-variant/30 rounded-[16px] p-8 text-center cursor-pointer">
+              <span className="material-symbols-outlined text-on-surface-variant text-3xl mb-1">add_photo_alternate</span>
+              <p className="text-on-surface-variant text-xs">Tap to add cover photo</p>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) setCoverPhoto(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+          )}
+        </div>
+
         <div>
           <label className={labelStyle}>Goal</label>
           <select className={inputStyle} value={form.goal_id} onChange={(e) => set('goal_id', Number(e.target.value))}>
@@ -143,20 +180,58 @@ function NewCampaignForm({
           <label className={labelStyle}>Location</label>
           <input className={inputStyle} value={form.location} onChange={(e) => set('location', e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelStyle}>Funding (EURC)</label>
-            <input type="number" className={inputStyle} value={form.funding_required} onChange={(e) => set('funding_required', e.target.value)} />
-          </div>
-          <div>
-            <label className={labelStyle}>Min volunteers</label>
-            <input type="number" className={inputStyle} value={form.min_volunteers} onChange={(e) => set('min_volunteers', e.target.value)} />
-          </div>
-        </div>
         <div>
-          <label className={labelStyle}>Max volunteers</label>
-          <input type="number" className={inputStyle} value={form.max_volunteers} onChange={(e) => set('max_volunteers', e.target.value)} />
+          <label className={labelStyle}>Funding (EURC)</label>
+          <input type="number" className={inputStyle} value={form.funding_required} onChange={(e) => set('funding_required', e.target.value)} />
         </div>
+
+        {/* Volunteer range */}
+        <div>
+          <label className={labelStyle}>Volunteers</label>
+          <div className="bg-surface-container-lowest border border-outline-variant/20 rounded-[16px] p-4">
+            <div className="flex justify-between mb-3">
+              <div className="text-center">
+                <p className="font-headline text-xl font-extrabold text-primary">{form.min_volunteers}</p>
+                <p className="text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider">Min</p>
+              </div>
+              <div className="text-center">
+                <p className="font-headline text-xl font-extrabold text-on-surface">{form.max_volunteers}</p>
+                <p className="text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider">Max</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  value={form.min_volunteers}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    set('min_volunteers', v);
+                    if (v > form.max_volunteers) set('max_volunteers', v);
+                  }}
+                  className="w-full accent-primary"
+                />
+              </div>
+              <div>
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  value={form.max_volunteers}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    set('max_volunteers', v);
+                    if (v < form.min_volunteers) set('min_volunteers', v);
+                  }}
+                  className="w-full accent-on-surface"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div>
           <label className={labelStyle}>Event date</label>
           <input type="date" className={inputStyle} value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
