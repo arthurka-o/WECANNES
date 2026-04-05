@@ -284,12 +284,14 @@ function ProfileView({
   checkedInCampaigns,
   claimedCampaigns,
   walletAddress,
+  onSelectCampaign,
 }: {
   campaigns: Campaign[];
   goals: Goal[];
   checkedInCampaigns: number[];
   claimedCampaigns: number[];
   walletAddress?: string;
+  onSelectCampaign: (id: number) => void;
 }) {
   const router = useRouter();
   const myCampaigns = campaigns.filter((c) => checkedInCampaigns.includes(c.id));
@@ -334,13 +336,13 @@ function ProfileView({
             {completedUnclaimed.map((c) => {
               const g = goals.find((g) => g.id === c.goal_id);
               return (
-                <div key={c.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1">
+                <button key={c.id} onClick={() => onSelectCampaign(c.id)} className="text-left bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-1 w-full">
                   <div className="flex justify-between items-start">
                     <p className="font-semibold">{c.title}</p>
                     <Chip label={g?.category ?? ''} />
                   </div>
                   <p className="text-sm text-amber-700">Campaign completed — claim your reward!</p>
-                </div>
+                </button>
               );
             })}
           </>
@@ -487,12 +489,17 @@ export default function VolunteerPage() {
 
   const handleClaimReward = async (rewardName: string) => {
     if (!walletAddress || !campaign) return;
+    if (!confirm(`Claim "${rewardName}"? This cannot be undone.`)) return;
     setClaiming(true);
-    await fetch('/api/rewards', {
+    const res = await fetch('/api/rewards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ walletAddress, rewardName, campaignId: campaign.id }),
     });
+    const data = await res.json();
+    if (!data.success) {
+      alert(data.error || 'Failed to claim reward');
+    }
     setClaiming(false);
   };
 
@@ -517,8 +524,8 @@ export default function VolunteerPage() {
           goals={goals}
           checkedInCampaigns={checkedInCampaigns}
           claimedCampaigns={claimedCampaigns}
-          rewards={rewards}
           walletAddress={walletAddress}
+          onSelectCampaign={(id) => { setSelectedCampaign(id); setMainTab('campaigns'); }}
         />
         {bottomTabs}
       </Page>
@@ -825,6 +832,7 @@ export default function VolunteerPage() {
           const checkedIn = checkedInCampaigns.includes(c.id);
           const daysUntil = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
           const timeLabel = daysUntil < 0 ? `${-daysUntil}d ago` : daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
+          const dateLabel = new Date(c.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
           return (
             <button
               key={c.id}
@@ -838,7 +846,7 @@ export default function VolunteerPage() {
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
                 <span className={daysUntil < 0 ? 'text-gray-400' : daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
-                  {timeLabel}
+                  {timeLabel} · {dateLabel}
                 </span>
                 <span>
                   {c.interest_count > 0 && `${c.interest_count} signed up`}

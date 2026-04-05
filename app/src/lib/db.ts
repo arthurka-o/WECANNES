@@ -350,6 +350,7 @@ export function createCampaign(data: {
   title: string;
   description: string;
   ngo: string;
+  ngo_contact?: string;
   funding_required: number;
   min_volunteers: number;
   max_volunteers: number;
@@ -361,9 +362,9 @@ export function createCampaign(data: {
   const eventDeadline = addMonths(data.event_date, 1);
 
   const result = db.prepare(`
-    INSERT INTO campaigns (goal_id, title, description, ngo, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')
-  `).run(data.goal_id, data.title, data.description, data.ngo, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location);
+    INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open')
+  `).run(data.goal_id, data.title, data.description, data.ngo, data.ngo_contact ?? null, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location);
   return Number(result.lastInsertRowid);
 }
 
@@ -504,6 +505,10 @@ function seed(): void {
   for (let i = 0; i < 18; i++) {
     db.prepare('INSERT INTO checkins (campaign_id, nullifier) VALUES (?, ?)').run(8, `fake-volunteer-lerins-${i}`);
   }
+
+  // --- Civic rewards ---
+  const insertReward = db.prepare('INSERT INTO civic_rewards (name, file_path) VALUES (?, ?)');
+  for (let i = 0; i < 10; i++) insertReward.run('Free Ice Cream', '/icecream.png');
 }
 
 seed();

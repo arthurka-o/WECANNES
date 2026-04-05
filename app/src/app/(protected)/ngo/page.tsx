@@ -22,11 +22,13 @@ const client = createPublicClient({
 function NewCampaignForm({
   goals,
   ngoName,
+  ngoEmail,
   onCreated,
   onBack,
 }: {
   goals: Goal[];
   ngoName: string;
+  ngoEmail: string;
   onCreated: () => void;
   onBack: () => void;
 }) {
@@ -57,6 +59,7 @@ function NewCampaignForm({
         body: JSON.stringify({
           ...form,
           ngo: ngoName,
+          ngo_contact: ngoEmail || undefined,
           funding_required: Number(form.funding_required),
           min_volunteers: Number(form.min_volunteers),
           max_volunteers: Number(form.max_volunteers),
@@ -168,6 +171,7 @@ export default function NgoPage() {
   const { data: session } = useSession();
   const { poll } = useUserOperationReceipt({ client });
   const [ngoName, setNgoName] = useState('');
+  const [ngoEmail, setNgoEmail] = useState('');
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -191,6 +195,7 @@ export default function NgoPage() {
         .then((r) => r.json())
         .then((data) => {
           if (data.name) setNgoName(data.name);
+          if (data.email) setNgoEmail(data.email);
         });
     }
   }, [session]);
@@ -226,7 +231,7 @@ export default function NgoPage() {
 
   // New campaign form
   if (showNewCampaign) {
-    return <NewCampaignForm goals={goals} ngoName={ngoName} onCreated={() => { setShowNewCampaign(false); setRefreshKey((k) => k + 1); }} onBack={() => setShowNewCampaign(false)} />;
+    return <NewCampaignForm goals={goals} ngoName={ngoName} ngoEmail={ngoEmail} onCreated={() => { setShowNewCampaign(false); setRefreshKey((k) => k + 1); }} onBack={() => setShowNewCampaign(false)} />;
   }
 
   if (showQR && campaign) {
@@ -374,6 +379,40 @@ export default function NgoPage() {
     const goal = goals.find((g) => g.id === campaign.goal_id);
     const canComplete = campaign.status === 'Active' && campaign.volunteer_count >= campaign.min_volunteers;
 
+    // #17: check if 7-day review period has passed for auto-release
+    const reviewExpired = campaign.status === 'PendingReview' &&
+      new Date(campaign.event_date).getTime() + 7 * 24 * 60 * 60 * 1000 < Date.now();
+
+    const handleAutoRelease = async () => {
+      try {
+        const result = await MiniKit.sendTransaction({
+          chainId: 480,
+          transactions: [
+            {
+              to: CAMPAIGN_ESCROW_ADDRESS,
+              data: encodeFunctionData({
+                abi: CAMPAIGN_ESCROW_ABI,
+                functionName: 'autoRelease',
+                args: [BigInt(campaign.id)],
+              }),
+            },
+          ],
+        });
+        await poll(result.data.userOpHash);
+
+        await fetch('/api/campaigns/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campaignId: campaign.id }),
+        });
+        setSelectedCampaign(null);
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        console.error('Auto-release error:', err);
+        alert('Failed to release funds. Please try again.');
+      }
+    };
+
     return (
       <>
         <Page.Header className="p-0">
@@ -390,6 +429,9 @@ export default function NgoPage() {
             <Chip label={goal?.category ?? ''} />
           </div>
 
+          {/* #13: show campaign description */}
+          <p className="text-sm text-gray-600">{campaign.description}</p>
+
           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
             <p className="text-sm"><span className="font-semibold">Location:</span> {campaign.location}</p>
             <p className="text-sm"><span className="font-semibold">Sponsor:</span> {campaign.sponsor ?? 'Awaiting sponsor'}</p>
@@ -398,6 +440,10 @@ export default function NgoPage() {
               {campaign.volunteer_count}/{campaign.max_volunteers}
               <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
             </p>
+            {/* #10: show signup count */}
+            {campaign.interest_count > 0 && (
+              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count} verified</span></p>
+            )}
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
             <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
             {campaign.status === 'Open' && (
@@ -440,9 +486,16 @@ export default function NgoPage() {
                   </div>
                 </>
               )}
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                <p className="text-sm text-amber-800">Waiting for sponsor to review and approve</p>
-              </div>
+              {reviewExpired ? (
+                <Button size="lg" variant="primary" className="w-full" onClick={handleAutoRelease}>
+                  Release Funds (review period expired)
+                </Button>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                  <p className="text-sm text-amber-800">Waiting for sponsor to review and approve</p>
+                  <p className="text-xs text-amber-600 mt-1">Funds auto-release after 7 days if no response</p>
+                </div>
+              )}
             </>
           )}
 
@@ -471,7 +524,7 @@ export default function NgoPage() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-red-800">Campaign expired</p>
               <p className="text-sm text-red-600 mt-1">
-                {campaign.sponsor ? 'Funds refunded to sponsor' : 'No sponsor found before deadline'}
+                {campaign.sponsor ? 'Sponsor can claim refund from their wallet' : 'No sponsor found before deadline'}
               </p>
             </div>
           )}
