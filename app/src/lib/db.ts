@@ -317,6 +317,7 @@ export function getCampaigns(): Campaign[] {
       ON ch.campaign_id = c.id
     LEFT JOIN (SELECT campaign_id, COUNT(*) as cnt FROM interests GROUP BY campaign_id) i
       ON i.campaign_id = c.id
+    ORDER BY c.event_date ASC
   `).all() as Campaign[];
   return rows;
 }
