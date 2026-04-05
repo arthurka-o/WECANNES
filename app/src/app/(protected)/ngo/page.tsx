@@ -109,60 +109,66 @@ function NewCampaignForm({
     setSubmitting(false);
   };
 
+  const inputStyle = "w-full bg-surface-container-lowest border border-outline-variant/20 rounded-[16px] p-3.5 text-sm text-on-surface focus:outline-none focus:border-primary/50";
+  const labelStyle = "text-[10px] font-bold text-on-surface-variant uppercase tracking-widest block mb-1.5";
+
   return (
     <>
-      <Page.Header className="p-0">
-        <TopBar
-          title="New Campaign"
-          startAdornment={<button onClick={onBack}>← Back</button>}
-        />
+      <Page.Header>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+            <span className="material-symbols-outlined">arrow_back</span>
+          </button>
+          <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface">New Campaign</h2>
+        </div>
       </Page.Header>
-      <Page.Main className="flex flex-col gap-3">
+      <Page.Main className="flex flex-col gap-4 pt-2">
         <div>
-          <label className="text-sm font-semibold block mb-1">Goal</label>
-          <select
-            className="w-full border rounded-lg p-3"
-            value={form.goal_id}
-            onChange={(e) => set('goal_id', Number(e.target.value))}
-          >
+          <label className={labelStyle}>Goal</label>
+          <select className={inputStyle} value={form.goal_id} onChange={(e) => set('goal_id', Number(e.target.value))}>
             {goals.map((g) => (
               <option key={g.id} value={g.id}>{g.title}</option>
             ))}
           </select>
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Title</label>
-          <input className="w-full border rounded-lg p-3" value={form.title} onChange={(e) => set('title', e.target.value)} />
+          <label className={labelStyle}>Title</label>
+          <input className={inputStyle} value={form.title} onChange={(e) => set('title', e.target.value)} />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Description</label>
-          <textarea className="w-full border rounded-lg p-3" rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
+          <label className={labelStyle}>Description</label>
+          <textarea className={inputStyle} rows={3} value={form.description} onChange={(e) => set('description', e.target.value)} />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Location</label>
-          <input className="w-full border rounded-lg p-3" value={form.location} onChange={(e) => set('location', e.target.value)} />
+          <label className={labelStyle}>Location</label>
+          <input className={inputStyle} value={form.location} onChange={(e) => set('location', e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-sm font-semibold block mb-1">Funding (EURC)</label>
-            <input type="number" className="w-full border rounded-lg p-3" value={form.funding_required} onChange={(e) => set('funding_required', e.target.value)} />
+            <label className={labelStyle}>Funding (EURC)</label>
+            <input type="number" className={inputStyle} value={form.funding_required} onChange={(e) => set('funding_required', e.target.value)} />
           </div>
           <div>
-            <label className="text-sm font-semibold block mb-1">Min volunteers</label>
-            <input type="number" className="w-full border rounded-lg p-3" value={form.min_volunteers} onChange={(e) => set('min_volunteers', e.target.value)} />
+            <label className={labelStyle}>Min volunteers</label>
+            <input type="number" className={inputStyle} value={form.min_volunteers} onChange={(e) => set('min_volunteers', e.target.value)} />
           </div>
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Max volunteers</label>
-          <input type="number" className="w-full border rounded-lg p-3" value={form.max_volunteers} onChange={(e) => set('max_volunteers', e.target.value)} />
+          <label className={labelStyle}>Max volunteers</label>
+          <input type="number" className={inputStyle} value={form.max_volunteers} onChange={(e) => set('max_volunteers', e.target.value)} />
         </div>
         <div>
-          <label className="text-sm font-semibold block mb-1">Event date</label>
-          <input type="date" className="w-full border rounded-lg p-3" value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
+          <label className={labelStyle}>Event date</label>
+          <input type="date" className={inputStyle} value={form.event_date} onChange={(e) => set('event_date', e.target.value)} />
         </div>
-        <Button size="lg" variant="primary" className="w-full" onClick={handleSubmit} disabled={submitting}>
+        <button
+          style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+          className="shadow-lg shadow-primary/20 active:scale-95 transition-transform disabled:opacity-50"
+          onClick={handleSubmit}
+          disabled={submitting}
+        >
           {submitting ? 'Creating...' : 'Create Campaign'}
-        </Button>
+        </button>
       </Page.Main>
     </>
   );
@@ -239,28 +245,34 @@ export default function NgoPage() {
   if (showQR && campaign) {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title="Check-In QR"
-            startAdornment={
-              <button onClick={() => setShowQR(false)}>← Back</button>
-            }
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowQR(false)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface">Check-In QR</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col items-center justify-center gap-4">
-          {qrValue ? (
-            <QRCodeSVG value={qrValue} size={256} />
-          ) : (
-            <div className="w-64 h-64 flex items-center justify-center">
-              <p className="text-gray-400 text-sm">Generating...</p>
-            </div>
-          )}
-          <p className="text-sm text-gray-600 text-center">
-            Show this to volunteers so they can scan and check in.
-          </p>
-          <p className="text-xs text-gray-400">
-            {campaign.volunteer_count}/{campaign.max_volunteers} checked in
-          </p>
+        <Page.Main className="flex flex-col items-center justify-center gap-6">
+          <div className="bg-surface-container-lowest rounded-[24px] p-8 border border-outline-variant/10 shadow-sm">
+            {qrValue ? (
+              <QRCodeSVG value={qrValue} size={220} />
+            ) : (
+              <div className="w-[220px] h-[220px] flex items-center justify-center">
+                <p className="text-on-surface-variant text-sm">Generating...</p>
+              </div>
+            )}
+          </div>
+          <div className="text-center">
+            <p className="font-headline font-bold text-on-surface">{campaign.title}</p>
+            <p className="text-sm text-on-surface-variant mt-1">
+              Show this to volunteers to check in
+            </p>
+          </div>
+          <div className="bg-surface-container-lowest rounded-[20px] px-6 py-3 border border-outline-variant/10">
+            <span className="font-headline text-xl font-extrabold text-primary">{campaign.volunteer_count}</span>
+            <span className="text-on-surface-variant text-sm">/{campaign.max_volunteers} checked in</span>
+          </div>
         </Page.Main>
       </>
     );
@@ -270,31 +282,32 @@ export default function NgoPage() {
   if (showSubmit && campaign) {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title="Submit Completion"
-            startAdornment={
-              <button onClick={() => setShowSubmit(false)}>← Back</button>
-            }
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowSubmit(false)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface">Submit Completion</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800">
+        <Page.Main className="flex flex-col gap-4 pt-2">
+          <div className="bg-tertiary-container/20 border border-tertiary/10 rounded-[16px] p-4">
+            <p className="text-xs text-on-surface-variant">
               Upload photos from the event. The sponsor will review them before funds are released.
             </p>
           </div>
 
-          <p className="font-semibold">Event Photos</p>
+          <p className="font-headline font-bold text-on-surface">Event Photos</p>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {selectedPhotos.map((f, i) => (
-              <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden relative">
+              <div key={i} className="aspect-square bg-surface-container rounded-[16px] overflow-hidden relative">
                 <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
-            <label className="aspect-square bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer">
-              <p className="text-gray-400 text-xs text-center">+ Add photo</p>
+            <label className="aspect-square bg-surface-container-lowest border-2 border-dashed border-outline-variant/30 rounded-[16px] flex flex-col items-center justify-center cursor-pointer">
+              <span className="material-symbols-outlined text-on-surface-variant text-2xl mb-1">add_photo_alternate</span>
+              <p className="text-on-surface-variant text-xs">Add photo</p>
               <input
                 type="file"
                 accept="image/*"
@@ -308,16 +321,24 @@ export default function NgoPage() {
             </label>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 space-y-1">
-            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count} checked in</p>
-            <p className="text-sm"><span className="font-semibold">Min required:</span> {campaign.min_volunteers}</p>
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-surface-container-lowest rounded-[20px] p-3 text-center border border-outline-variant/10">
+              <p className="font-headline text-lg font-extrabold text-primary">{campaign.volunteer_count}</p>
+              <p className="text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider mt-0.5">checked in</p>
+            </div>
+            <div className="bg-surface-container-lowest rounded-[20px] p-3 text-center border border-outline-variant/10">
+              <p className="font-headline text-lg font-extrabold text-on-surface">{campaign.min_volunteers}</p>
+              <p className="text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider mt-0.5">min needed</p>
+            </div>
+            <div className="bg-surface-container-lowest rounded-[20px] p-3 text-center border border-outline-variant/10">
+              <p className="font-headline text-lg font-extrabold text-primary">{campaign.funding_required}</p>
+              <p className="text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider mt-0.5">EURC</p>
+            </div>
           </div>
 
-          <Button
-            size="lg"
-            variant="primary"
-            className="w-full"
+          <button
+            style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+            className="shadow-lg shadow-primary/20 active:scale-95 transition-transform"
             onClick={async () => {
               try {
                 // Upload photos + update SQLite first
@@ -367,8 +388,8 @@ export default function NgoPage() {
             }}
           >
             Submit for Review
-          </Button>
-          <p className="text-xs text-gray-400 text-center">
+          </button>
+          <p className="text-[10px] text-on-surface-variant text-center uppercase tracking-wider">
             Sponsor has 7 days to review. Funds auto-release after that.
           </p>
         </Page.Main>
