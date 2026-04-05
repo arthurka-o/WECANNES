@@ -251,9 +251,11 @@ function WorldIdCheckIn({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-        <p className="text-sm text-blue-800">QR verified! Now confirm your identity.</p>
+    <div className="space-y-4">
+      <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-tertiary/20 text-center shadow-sm">
+        <span className="material-symbols-outlined text-tertiary text-3xl mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_scanner</span>
+        <p className="font-headline font-bold text-on-surface">QR Verified!</p>
+        <p className="text-xs text-on-surface-variant mt-1">Now confirm your identity with World ID</p>
       </div>
       <LiveFeedback
         label={{
@@ -264,15 +266,13 @@ function WorldIdCheckIn({
         state={state}
         className="w-full"
       >
-        <Button
+        <button
           onClick={handleVerify}
           disabled={state === 'pending'}
-          size="lg"
-          variant="primary"
-          className="w-full"
+          style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }} className="shadow-lg shadow-primary/20 active:scale-95 transition-transform disabled:opacity-50"
         >
           Verify with World ID
-        </Button>
+        </button>
       </LiveFeedback>
     </div>
   );
@@ -629,29 +629,29 @@ export default function VolunteerPage() {
   if (showRewards) {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title="Civic Rewards"
-            startAdornment={
-              <button onClick={() => setShowRewards(false)}>← Back</button>
-            }
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setShowRewards(false)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface">Civic Rewards</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
-          <p className="text-sm text-gray-500">Available to all volunteers — first come, first serve</p>
+        <Page.Main className="flex flex-col gap-3 pt-2">
+          <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Available to all volunteers</p>
           {rewards.map((r) => (
-            <div key={r.name} className="bg-white border rounded-xl p-4 flex justify-between items-center">
+            <div key={r.name} className="bg-surface-container-lowest rounded-[20px] p-4 flex justify-between items-center border border-outline-variant/10 shadow-sm">
               <div>
-                <p className="font-semibold">{r.name}</p>
+                <p className="font-headline font-bold text-on-surface">{r.name}</p>
               </div>
               <div className="text-right">
                 {r.remaining > 0 ? (
                   <>
-                    <p className="text-lg font-bold">{r.remaining}</p>
-                    <p className="text-xs text-gray-400">of {r.total} left</p>
+                    <p className="font-headline text-xl font-extrabold text-primary">{r.remaining}</p>
+                    <p className="text-[10px] text-on-surface-variant font-medium uppercase tracking-wider">of {r.total}</p>
                   </>
                 ) : (
-                  <p className="text-sm font-semibold text-red-500">Sold out</p>
+                  <span className="px-3 py-1.5 rounded-xl bg-red-100 text-red-800 text-xs font-bold uppercase tracking-wider">Sold out</span>
                 )}
               </div>
             </div>
@@ -665,28 +665,41 @@ export default function VolunteerPage() {
   if (campaign && goal && campaign.status === 'Completed') {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title={campaign.title}
-            startAdornment={
-              <button onClick={() => setSelectedCampaign(null)}>← Back</button>
-            }
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedCampaign(null)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface truncate">{campaign.title}</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <Chip label="Completed" />
-          <p className="text-sm text-gray-600">{campaign.location}</p>
-          <p>{campaign.description}</p>
+        <Page.Main className="flex flex-col gap-4 pt-2">
+          <div className="flex gap-2">
+            <span className="px-3 py-1 bg-primary-container/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full">Completed</span>
+            <span className="px-3 py-1 bg-white/90 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-outline-variant/10">{goal.category}</span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">location_on</span>
+              <span className="text-on-surface">{campaign.location}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">groups</span>
+              <span className="text-on-surface">{campaign.volunteer_count} volunteers participated</span>
+            </div>
+          </div>
+
+          <p className="text-sm text-on-surface-variant">{campaign.description}</p>
 
           {hasClaimedReward && claimedReward ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-green-800">Reward claimed!</p>
-              <p className="text-sm text-green-600 mt-1">{claimedReward.name}</p>
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-primary/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-primary text-4xl mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>celebration</span>
+              <p className="font-headline font-bold text-on-surface">Reward claimed!</p>
+              <p className="text-sm text-on-surface-variant mt-1">{claimedReward.name}</p>
               {claimedReward.file_path && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full mt-2"
+                <button
+                  className="mt-3 px-5 py-2.5 rounded-xl bg-surface-container-low text-primary text-xs font-bold uppercase tracking-wider"
                   onClick={async () => {
                     const res = await fetch(claimedReward.file_path);
                     const blob = await res.blob();
@@ -696,28 +709,28 @@ export default function VolunteerPage() {
                   }}
                 >
                   Save ticket
-                </Button>
+                </button>
               )}
             </div>
           ) : (
             <>
-              <p className="font-semibold">Choose your reward</p>
+              <p className="font-headline font-bold text-on-surface">Choose your reward</p>
               {rewards.map((r) => (
                 <button
                   key={r.name}
                   onClick={() => setConfirmReward(r.name)}
                   disabled={r.remaining <= 0 || claiming}
-                  className={`text-left border rounded-xl p-4 flex justify-between items-center ${
-                    r.remaining <= 0 ? 'opacity-50' : 'bg-white'
+                  className={`w-full text-left bg-surface-container-lowest rounded-[20px] p-4 flex justify-between items-center border border-outline-variant/10 shadow-sm ${
+                    r.remaining <= 0 ? 'opacity-40' : ''
                   }`}
                 >
-                  <p className="font-semibold">{r.name}</p>
-                  <p className="text-sm text-gray-500">{r.remaining} left</p>
+                  <p className="font-bold text-on-surface">{r.name}</p>
+                  <span className="text-xs text-on-surface-variant font-medium">{r.remaining} left</span>
                 </button>
               ))}
               {totalRewardsLeft === 0 && (
-                <p className="text-sm text-amber-600 text-center">
-                  No rewards available right now. Check back later.
+                <p className="text-sm text-on-surface-variant text-center mt-2">
+                  No rewards available right now.
                 </p>
               )}
             </>
@@ -803,49 +816,55 @@ export default function VolunteerPage() {
 
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title={campaign.title}
-            startAdornment={
-              <button onClick={() => { setSelectedCampaign(null); setStep('browse'); }}>← Back</button>
-            }
-          />
-        </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
-          <div className="flex gap-2">
-            <Chip label={goal.category} />
-            {campaign.status === 'Open' && <Chip label="Needs sponsor" />}
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => { setSelectedCampaign(null); setStep('browse'); }} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface truncate">{campaign.title}</h2>
           </div>
+        </Page.Header>
+        <Page.Main className="flex flex-col gap-4 pt-2">
+          {/* Cover image */}
+          {campaign.cover_image && (
+            <div className="relative h-44 w-full rounded-[20px] overflow-hidden -mt-2">
+              <img src={campaign.cover_image} alt="" className="w-full h-full object-cover" />
+              <div className="absolute top-3 left-3 flex gap-2">
+                <span className="px-3 py-1 bg-white/90 backdrop-blur-md text-primary text-[10px] font-bold uppercase tracking-wider rounded-full">{goal.category}</span>
+                {campaign.status === 'Open' && <span className="px-3 py-1 bg-amber-100/90 backdrop-blur-md text-amber-800 text-[10px] font-bold uppercase tracking-wider rounded-full">Needs sponsor</span>}
+              </div>
+            </div>
+          )}
 
-          <p className="text-sm text-gray-600">{campaign.description}</p>
+          <p className="text-sm text-on-surface-variant">{campaign.description}</p>
 
           {/* Info rows */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">📍</span>
-              <span>{campaign.location}</span>
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">location_on</span>
+              <span className="text-on-surface">{campaign.location}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">📅</span>
-              <span>
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">event</span>
+              <span className="text-on-surface">
                 {formatDate(campaign.event_date)}
                 {(() => {
                   const days = Math.ceil((new Date(campaign.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-                  if (days < 0) return <span className="text-gray-400"> · {-days}d ago</span>;
-                  if (days === 0) return <span className="text-green-600 font-semibold"> · Today</span>;
-                  if (days === 1) return <span className="text-amber-600"> · Tomorrow</span>;
-                  return <span className="text-gray-400"> · in {days}d</span>;
+                  if (days < 0) return <span className="text-on-surface-variant"> · {-days}d ago</span>;
+                  if (days === 0) return <span className="text-primary font-semibold"> · Today</span>;
+                  if (days === 1) return <span className="text-amber-600 font-semibold"> · Tomorrow</span>;
+                  return <span className="text-on-surface-variant"> · in {days}d</span>;
                 })()}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400 w-5 text-center">🏢</span>
-              <span>{campaign.ngo}</span>
+            <div className="flex items-center gap-2.5 text-sm">
+              <span className="material-symbols-outlined text-on-surface-variant text-lg">apartment</span>
+              <span className="text-on-surface">{campaign.ngo}</span>
             </div>
             {campaign.sponsor && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-gray-400 w-5 text-center">🤝</span>
-                <span>Sponsored by {campaign.sponsor}</span>
+              <div className="flex items-center gap-2.5 text-sm">
+                <span className="material-symbols-outlined text-on-surface-variant text-lg">handshake</span>
+                <span className="text-on-surface">{campaign.sponsor}</span>
               </div>
             )}
           </div>
@@ -855,32 +874,32 @@ export default function VolunteerPage() {
             const progress = isEventDay ? Math.min(campaign.volunteer_count / campaign.min_volunteers, 1) : 0;
             return (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {isEventDay ? (
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
-                      <p className="text-xs text-gray-500">checked in</p>
+                    <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                      <p className="font-headline text-2xl font-extrabold text-primary">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
+                      <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">checked in</p>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-xl font-bold">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
-                      <p className="text-xs text-gray-500">needed</p>
+                    <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                      <p className="font-headline text-2xl font-extrabold text-on-surface">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
+                      <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">needed</p>
                     </div>
                   )}
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <p className="text-xl font-bold text-blue-600">{campaign.interest_count}</p>
-                    <p className="text-xs text-gray-500">signed up</p>
+                  <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+                    <p className="font-headline text-2xl font-extrabold text-tertiary">{campaign.interest_count}</p>
+                    <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">signed up</p>
                   </div>
                 </div>
                 {isEventDay && campaign.volunteer_count > 0 && (
                   <div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-surface-container-high rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full ${progress >= 1 ? 'bg-green-500' : 'bg-amber-500'}`}
+                        className={`h-2 rounded-full transition-all ${progress >= 1 ? 'bg-primary' : 'bg-amber-500'}`}
                         style={{ width: `${progress * 100}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1 text-center">
+                    <p className="text-[10px] text-on-surface-variant font-medium mt-1.5 text-center">
                       {progress >= 1 ? 'Minimum reached!' : `${campaign.min_volunteers - campaign.volunteer_count} more needed`}
                     </p>
                   </div>
@@ -890,43 +909,35 @@ export default function VolunteerPage() {
           })()}
 
           {step === 'browse' && isAlreadyCheckedIn && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-green-800">Checked in!</p>
-              <p className="text-sm text-green-600 mt-1">
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-primary/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-primary text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <p className="font-headline font-bold text-on-surface">Checked in!</p>
+              <p className="text-xs text-on-surface-variant mt-1">
                 You&apos;ll receive civic rewards when the campaign completes.
               </p>
             </div>
           )}
 
           {step === 'browse' && !isAlreadyCheckedIn && !isEventDay && !isInterested && (
-            <Button
-              size="lg"
-              variant="primary"
-              className="w-full"
-              onClick={handleInterest}
-            >
-              Sign up
-            </Button>
+            <button style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }} className="shadow-lg shadow-primary/20 active:scale-95 transition-transform" onClick={handleInterest}>
+              Sign Up
+            </button>
           )}
 
           {step === 'browse' && !isAlreadyCheckedIn && !isEventDay && isInterested && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-blue-800">You&apos;re signed up!</p>
-              <p className="text-sm text-blue-600 mt-1">
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-tertiary/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-tertiary text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>event_available</span>
+              <p className="font-headline font-bold text-on-surface">You&apos;re signed up!</p>
+              <p className="text-xs text-on-surface-variant mt-1">
                 Check-in opens on {formatDate(campaign.event_date)}
               </p>
             </div>
           )}
 
           {step === 'browse' && !isAlreadyCheckedIn && isEventDay && (
-            <Button
-              size="lg"
-              variant="primary"
-              className="w-full"
-              onClick={() => setStep('scan')}
-            >
+            <button style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }} className="shadow-lg shadow-primary/20 active:scale-95 transition-transform" onClick={() => setStep('scan')}>
               Check In
-            </Button>
+            </button>
           )}
 
           {step === 'scan' && (
@@ -951,9 +962,10 @@ export default function VolunteerPage() {
           )}
 
           {step === 'done' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-green-800">Checked in!</p>
-              <p className="text-sm text-green-600 mt-1">
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-primary/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-primary text-4xl mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>celebration</span>
+              <p className="font-headline font-bold text-on-surface">Checked in!</p>
+              <p className="text-xs text-on-surface-variant mt-1">
                 You&apos;ll receive civic rewards when the campaign completes.
               </p>
             </div>
@@ -1023,7 +1035,7 @@ export default function VolunteerPage() {
                 {isSignedUp ? (
                   <span className="px-4 py-2 rounded-xl bg-surface-container text-primary text-xs font-bold uppercase tracking-wider">Joined</span>
                 ) : (
-                  <span className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">Join Mission</span>
+                  <span className="impact-gradient px-4 py-2 rounded-xl text-white text-xs font-bold uppercase tracking-wider">Sign Up</span>
                 )}
               </div>
             </CampaignCard>
