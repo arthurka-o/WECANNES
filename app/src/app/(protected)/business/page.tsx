@@ -466,7 +466,13 @@ export default function BusinessPage() {
         {tab === 'browse' && (
           <>
             <p className="text-sm text-gray-500">Campaigns looking for sponsors</p>
-            {openCampaigns.length === 0 && <p className="text-center text-gray-400 mt-4">No campaigns need sponsoring</p>}
+            {openCampaigns.length === 0 && (
+              <div className="flex flex-col items-center justify-center mt-16 gap-3">
+                <span className="material-symbols-outlined text-6xl text-outline-variant">storefront</span>
+                <p className="font-headline font-bold text-on-surface-variant">All caught up</p>
+                <p className="text-sm text-on-surface-variant">No campaigns need sponsoring right now</p>
+              </div>
+            )}
             {openCampaigns.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
@@ -487,7 +493,13 @@ export default function BusinessPage() {
         {tab === 'review' && (
           <>
             <p className="text-sm text-gray-500">Campaigns awaiting your approval</p>
-            {pendingReview.length === 0 && <p className="text-center text-gray-400 mt-4">Nothing to review</p>}
+            {pendingReview.length === 0 && (
+              <div className="flex flex-col items-center justify-center mt-16 gap-3">
+                <span className="material-symbols-outlined text-6xl text-outline-variant">fact_check</span>
+                <p className="font-headline font-bold text-on-surface-variant">Nothing to review</p>
+                <p className="text-sm text-on-surface-variant">You&apos;re all caught up!</p>
+              </div>
+            )}
             {pendingReview.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
@@ -505,7 +517,13 @@ export default function BusinessPage() {
         {tab === 'sponsored' && (
           <>
             <p className="text-sm text-gray-500">Campaigns you sponsored</p>
-            {sponsored.length === 0 && <p className="text-center text-gray-400 mt-4">No sponsored campaigns yet</p>}
+            {sponsored.length === 0 && (
+              <div className="flex flex-col items-center justify-center mt-16 gap-3">
+                <span className="material-symbols-outlined text-6xl text-outline-variant">volunteer_activism</span>
+                <p className="font-headline font-bold text-on-surface-variant">No sponsorships yet</p>
+                <p className="text-sm text-on-surface-variant">Browse campaigns and make an impact!</p>
+              </div>
+            )}
             {sponsored.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (

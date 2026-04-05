@@ -195,9 +195,13 @@ export default function Home() {
   return (
     <Page>
       <Page.Main className="flex flex-col items-center justify-center text-center gap-8 px-8">
-        <div className="w-20 h-20 rounded-[24px] impact-gradient flex items-center justify-center">
-          <span className="material-symbols-outlined text-white text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>{currentSlide.icon}</span>
-        </div>
+        {slide === 0 ? (
+          <img src="/wecannes_logo.png" alt="WECANNES" className="w-24 h-24" />
+        ) : (
+          <div className="w-20 h-20 rounded-[24px] impact-gradient flex items-center justify-center">
+            <span className="material-symbols-outlined text-white text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>{currentSlide.icon}</span>
+          </div>
+        )}
         <div className="space-y-3">
           <p className="font-headline text-3xl font-extrabold tracking-tight text-on-surface">{currentSlide.title}</p>
           <p className="text-on-surface-variant">{currentSlide.description}</p>
@@ -230,7 +234,7 @@ export default function Home() {
         {!isLast && (
           <button
             onClick={() => setView('roles')}
-            className="w-full text-center text-sm text-on-surface-variant mt-3"
+            className="w-full text-center text-sm text-on-surface-variant mt-8 pb-2"
           >
             Skip
           </button>

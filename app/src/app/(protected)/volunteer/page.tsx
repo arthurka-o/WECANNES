@@ -1043,7 +1043,11 @@ export default function VolunteerPage() {
         })}
 
         {tab === 'upcoming' && upcomingCampaigns.length === 0 && (
-          <p className="text-center text-gray-500 mt-8">No upcoming campaigns right now.</p>
+          <div className="flex flex-col items-center justify-center mt-16 gap-3">
+            <span className="material-symbols-outlined text-6xl text-outline-variant">explore</span>
+            <p className="font-headline font-bold text-on-surface-variant">Nothing here yet</p>
+            <p className="text-sm text-on-surface-variant">New campaigns are on the way!</p>
+          </div>
         )}
 
         {tab === 'current' && currentCampaigns.map((c) => {
@@ -1068,7 +1072,11 @@ export default function VolunteerPage() {
         })}
 
         {tab === 'current' && currentCampaigns.length === 0 && (
-          <p className="text-center text-gray-500 mt-8">No active check-ins. Sign up for a campaign!</p>
+          <div className="flex flex-col items-center justify-center mt-16 gap-3">
+            <span className="material-symbols-outlined text-6xl text-outline-variant">directions_walk</span>
+            <p className="font-headline font-bold text-on-surface-variant">No check-ins yet</p>
+            <p className="text-sm text-on-surface-variant">Sign up for a campaign and show up!</p>
+          </div>
         )}
 
         {tab === 'completed' && completedCampaigns.map((c) => {
@@ -1097,7 +1105,11 @@ export default function VolunteerPage() {
         })}
 
         {tab === 'completed' && completedCampaigns.length === 0 && (
-          <p className="text-center text-gray-500 mt-8">No completed campaigns yet.</p>
+          <div className="flex flex-col items-center justify-center mt-16 gap-3">
+            <span className="material-symbols-outlined text-6xl text-outline-variant">emoji_events</span>
+            <p className="font-headline font-bold text-on-surface-variant">No trophies yet</p>
+            <p className="text-sm text-on-surface-variant">Complete a campaign to earn rewards!</p>
+          </div>
         )}
       </Page.Main>
       {showBottomTabs && bottomTabs}

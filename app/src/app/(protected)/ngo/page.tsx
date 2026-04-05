@@ -643,6 +643,14 @@ export default function NgoPage() {
           </button>
         </div>
 
+        {ngoCampaigns.length === 0 && (
+          <div className="flex flex-col items-center justify-center mt-16 gap-3">
+            <span className="material-symbols-outlined text-6xl text-outline-variant">add_circle</span>
+            <p className="font-headline font-bold text-on-surface-variant">No campaigns yet</p>
+            <p className="text-sm text-on-surface-variant">Create your first campaign to get started!</p>
+          </div>
+        )}
+
         {ngoCampaigns.map((c) => {
           const goal = goals.find((g) => g.id === c.goal_id);
           return (
