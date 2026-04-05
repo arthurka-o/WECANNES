@@ -232,50 +232,57 @@ export default function BusinessPage() {
     return (
       <>
         <div className="flex gap-2">
-          <Chip label={g?.category ?? ''} />
-          <Chip label={c.status} />
+          <span className="px-3 py-1 bg-white/90 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-outline-variant/10">{g?.category}</span>
+          <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full ${
+            c.status === 'Completed' ? 'bg-primary-container/20 text-primary' :
+            c.status === 'Active' ? 'bg-blue-100 text-blue-800' :
+            c.status === 'Open' ? 'bg-amber-100 text-amber-800' :
+            c.status === 'PendingReview' ? 'bg-purple-100 text-purple-800' :
+            c.status === 'Expired' ? 'bg-red-100 text-red-800' :
+            'bg-surface-container text-on-surface-variant'
+          }`}>{c.status === 'PendingReview' ? 'In Review' : c.status}</span>
         </div>
 
-        <p className="text-sm text-gray-600">{c.description}</p>
+        <p className="text-sm text-on-surface-variant">{c.description}</p>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400 w-5 text-center">📍</span>
-            <span>{c.location}</span>
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="material-symbols-outlined text-on-surface-variant text-lg">location_on</span>
+            <span className="text-on-surface">{c.location}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400 w-5 text-center">📅</span>
-            <span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="material-symbols-outlined text-on-surface-variant text-lg">event</span>
+            <span className="text-on-surface">
               {formatDate(c.event_date)}
-              {days < 0 && <span className="text-gray-400"> · {-days}d ago</span>}
-              {days === 0 && <span className="text-green-600 font-semibold"> · Today</span>}
-              {days > 0 && <span className="text-gray-400"> · in {days}d</span>}
+              {days < 0 && <span className="text-on-surface-variant"> · {-days}d ago</span>}
+              {days === 0 && <span className="text-primary font-semibold"> · Today</span>}
+              {days > 0 && <span className="text-on-surface-variant"> · in {days}d</span>}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400 w-5 text-center">🏢</span>
-            <span>{c.ngo}</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="material-symbols-outlined text-on-surface-variant text-lg">apartment</span>
+            <span className="text-on-surface">{c.ngo}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400 w-5 text-center">💰</span>
-            <span>{c.funding_required} EURC</span>
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="material-symbols-outlined text-on-surface-variant text-lg">payments</span>
+            <span className="text-on-surface">{c.funding_required} EURC</span>
           </div>
           {c.status === 'Open' && (
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span className="w-5 text-center">⏰</span>
+            <div className="flex items-center gap-2.5 text-sm text-on-surface-variant">
+              <span className="material-symbols-outlined text-lg">schedule</span>
               <span>Sponsor by {formatDate(c.sponsorship_deadline)}</span>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold">{c.volunteer_count}/{c.min_volunteers}</p>
-            <p className="text-xs text-gray-500">checked in</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+            <p className="font-headline text-2xl font-extrabold text-primary">{c.volunteer_count}/{c.min_volunteers}</p>
+            <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">checked in</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3 text-center">
-            <p className="text-xl font-bold text-blue-600">{c.interest_count}</p>
-            <p className="text-xs text-gray-500">signed up</p>
+          <div className="bg-surface-container-lowest rounded-[20px] p-4 text-center border border-outline-variant/10">
+            <p className="font-headline text-2xl font-extrabold text-tertiary">{c.interest_count}</p>
+            <p className="text-[10px] text-on-surface-variant font-semibold uppercase tracking-wider mt-1">signed up</p>
           </div>
         </div>
       </>
@@ -286,18 +293,24 @@ export default function BusinessPage() {
   if (campaign && campaign.status === 'Open') {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title={campaign.title}
-            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedCampaign(null)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface truncate">{campaign.title}</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
+        <Page.Main className="flex flex-col gap-4 pt-2">
           {campaignInfoRows(campaign)}
 
-          <Button size="lg" variant="primary" className="w-full" onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}>
+          <button
+            style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '20px 40px', borderRadius: '12px', fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+            className="shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+            onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}
+          >
             Sponsor — {campaign.funding_required} EURC
-          </Button>
+          </button>
           {confirmDialog}
         </Page.Main>
       </>
@@ -308,51 +321,61 @@ export default function BusinessPage() {
   if (campaign && campaign.status === 'PendingReview') {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title="Review Completion"
-            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedCampaign(null)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface">Review Completion</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
+        <Page.Main className="flex flex-col gap-4 pt-2">
           {campaignInfoRows(campaign)}
 
-          <p className="font-semibold">Event Photos</p>
+          <p className="font-headline font-bold text-on-surface">Event Photos</p>
           <div className="grid grid-cols-2 gap-2">
             {photos.length > 0 ? (
               photos.map((p, i) => (
-                <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                <div key={i} className="aspect-square bg-surface-container rounded-[16px] overflow-hidden">
                   <img src={p} alt="" className="w-full h-full object-cover" />
                 </div>
               ))
             ) : (
-              <p className="text-sm text-gray-400 col-span-2">No photos uploaded</p>
+              <p className="text-sm text-on-surface-variant col-span-2">No photos uploaded</p>
             )}
           </div>
 
           {campaign.ngo_contact && (
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-              <p className="text-sm font-semibold">NGO Contact</p>
-              <p className="text-sm">{campaign.ngo} · {campaign.ngo_contact}</p>
+            <div className="bg-surface-container-lowest rounded-[20px] p-4 border border-outline-variant/10">
+              <p className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest leading-none mb-1">NGO Contact</p>
+              <p className="text-sm font-semibold text-on-surface">{campaign.ngo} · {campaign.ngo_contact}</p>
             </div>
           )}
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-800">
+          <div className="bg-tertiary-container/20 border border-tertiary/10 rounded-[16px] p-4">
+            <p className="text-xs text-on-surface-variant">
               By approving, {campaign.funding_required} EURC will be released to {campaign.ngo}. You can use these photos for marketing and ESG reporting.
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <Button size="lg" variant="secondary" className="flex-1" onClick={() => setConfirmAction({ type: 'reject', campaignId: campaign.id })}>
+          <div className="flex gap-3">
+            <button
+              style={{ padding: '16px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+              className="flex-1 bg-surface-container text-on-surface-variant active:scale-95 transition-transform"
+              onClick={() => setConfirmAction({ type: 'reject', campaignId: campaign.id })}
+            >
               Reject
-            </Button>
-            <Button size="lg" variant="primary" className="flex-1" onClick={() => setConfirmAction({ type: 'approve', campaignId: campaign.id })}>
-              Approve & Release
-            </Button>
+            </button>
+            <button
+              style={{ background: 'linear-gradient(135deg, #006c4f 0%, #00c896 100%)', color: 'white', padding: '16px', borderRadius: '12px', fontSize: '14px', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}
+              className="flex-1 shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+              onClick={() => setConfirmAction({ type: 'approve', campaignId: campaign.id })}
+            >
+              Approve
+            </button>
           </div>
-          <p className="text-xs text-gray-400 text-center">
-            Auto-releases in 7 days if no action taken.
+          <p className="text-[10px] text-on-surface-variant text-center uppercase tracking-wider">
+            Auto-releases in 7 days if no action taken
           </p>
           {confirmDialog}
         </Page.Main>
@@ -364,35 +387,39 @@ export default function BusinessPage() {
   if (campaign) {
     return (
       <>
-        <Page.Header className="p-0">
-          <TopBar
-            title={campaign.title}
-            startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
-          />
+        <Page.Header>
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSelectedCampaign(null)} className="w-10 h-10 flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+            <h2 className="font-headline text-xl font-extrabold tracking-tight text-on-surface truncate">{campaign.title}</h2>
+          </div>
         </Page.Header>
-        <Page.Main className="flex flex-col gap-3">
+        <Page.Main className="flex flex-col gap-4 pt-2">
           {campaignInfoRows(campaign)}
 
           {campaign.status === 'Completed' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-green-800">{campaign.funding_required} EURC released</p>
-              <p className="text-sm text-green-600 mt-1">Campaign completed successfully</p>
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-primary/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-primary text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <p className="font-headline font-bold text-on-surface">{campaign.funding_required} EURC released</p>
+              <p className="text-xs text-on-surface-variant mt-1">Campaign completed successfully</p>
             </div>
           )}
 
           {campaign.status === 'Expired' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <p className="font-semibold text-red-800">Campaign expired</p>
-              <p className="text-sm text-red-600 mt-1">Sponsor can claim refund from their wallet</p>
+            <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-error/20 text-center shadow-sm">
+              <span className="material-symbols-outlined text-error text-3xl mb-1" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span>
+              <p className="font-headline font-bold text-on-surface">Campaign expired</p>
+              <p className="text-xs text-on-surface-variant mt-1">Sponsor can claim refund from their wallet</p>
             </div>
           )}
 
           {photos.length > 0 && (
             <>
-              <p className="font-semibold">Event Photos</p>
+              <p className="font-headline font-bold text-on-surface">Event Photos</p>
               <div className="grid grid-cols-2 gap-2">
                 {photos.map((p, i) => (
-                  <div key={i} className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                  <div key={i} className="aspect-square bg-surface-container rounded-[16px] overflow-hidden">
                     <img src={p} alt="" className="w-full h-full object-cover" />
                   </div>
                 ))}
