@@ -775,36 +775,83 @@ export default function VolunteerPage() {
             }
           />
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
+        <Page.Main className="flex flex-col gap-3">
           <div className="flex gap-2">
             <Chip label={goal.category} />
-            {spotsLeft <= 5 && spotsLeft > 0 && (
-              <Chip label={`${spotsLeft} spots left`} />
-            )}
+            {campaign.status === 'Open' && <Chip label="Needs sponsor" />}
           </div>
-          <p className="text-sm text-gray-600">{campaign.location}</p>
-          <p>{campaign.description}</p>
 
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm">
-              <span className="font-semibold">Organizer:</span> {campaign.ngo}
-            </p>
-            {campaign.interest_count > 0 && (
-              <p className="text-sm">
-                <span className="font-semibold">Signed up:</span>{' '}
-                {campaign.interest_count}
-              </p>
+          <p className="text-sm text-gray-600">{campaign.description}</p>
+
+          {/* Info rows */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">📍</span>
+              <span>{campaign.location}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">📅</span>
+              <span>
+                {formatDate(campaign.event_date)}
+                {(() => {
+                  const days = Math.ceil((new Date(campaign.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  if (days < 0) return <span className="text-gray-400"> · {-days}d ago</span>;
+                  if (days === 0) return <span className="text-green-600 font-semibold"> · Today</span>;
+                  if (days === 1) return <span className="text-amber-600"> · Tomorrow</span>;
+                  return <span className="text-gray-400"> · in {days}d</span>;
+                })()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">🏢</span>
+              <span>{campaign.ngo}</span>
+            </div>
+            {campaign.sponsor && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-400 w-5 text-center">🤝</span>
+                <span>Sponsored by {campaign.sponsor}</span>
+              </div>
             )}
-            {isEventDay && (
-              <p className="text-sm">
-                <span className="font-semibold">Volunteers:</span>{' '}
-                {campaign.volunteer_count}/{campaign.max_volunteers} checked in
-              </p>
-            )}
-            <p className="text-sm">
-              <span className="font-semibold">Event date:</span> {formatDate(campaign.event_date)}
-            </p>
           </div>
+
+          {/* Stats grid */}
+          {(() => {
+            const progress = isEventDay ? Math.min(campaign.volunteer_count / campaign.min_volunteers, 1) : 0;
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {isEventDay ? (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xl font-bold">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
+                      <p className="text-xs text-gray-500">checked in</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xl font-bold">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
+                      <p className="text-xs text-gray-500">needed</p>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-blue-600">{campaign.interest_count}</p>
+                    <p className="text-xs text-gray-500">signed up</p>
+                  </div>
+                </div>
+                {isEventDay && campaign.volunteer_count > 0 && (
+                  <div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${progress >= 1 ? 'bg-green-500' : 'bg-amber-500'}`}
+                        style={{ width: `${progress * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 text-center">
+                      {progress >= 1 ? 'Minimum reached!' : `${campaign.min_volunteers - campaign.volunteer_count} more needed`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {step === 'browse' && isAlreadyCheckedIn && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">

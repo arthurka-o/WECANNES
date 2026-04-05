@@ -224,9 +224,66 @@ export default function BusinessPage() {
     </AlertDialog>
   );
 
+  // Shared info rows for campaign detail
+  const campaignInfoRows = (c: typeof campaign) => {
+    if (!c) return null;
+    const g = goals.find((g) => g.id === c.goal_id);
+    const days = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    return (
+      <>
+        <div className="flex gap-2">
+          <Chip label={g?.category ?? ''} />
+          <Chip label={c.status} />
+        </div>
+
+        <p className="text-sm text-gray-600">{c.description}</p>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-400 w-5 text-center">📍</span>
+            <span>{c.location}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-400 w-5 text-center">📅</span>
+            <span>
+              {formatDate(c.event_date)}
+              {days < 0 && <span className="text-gray-400"> · {-days}d ago</span>}
+              {days === 0 && <span className="text-green-600 font-semibold"> · Today</span>}
+              {days > 0 && <span className="text-gray-400"> · in {days}d</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-400 w-5 text-center">🏢</span>
+            <span>{c.ngo}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-400 w-5 text-center">💰</span>
+            <span>{c.funding_required} EURC</span>
+          </div>
+          {c.status === 'Open' && (
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="w-5 text-center">⏰</span>
+              <span>Sponsor by {formatDate(c.sponsorship_deadline)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-xl font-bold">{c.volunteer_count}/{c.min_volunteers}</p>
+            <p className="text-xs text-gray-500">checked in</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <p className="text-xl font-bold text-blue-600">{c.interest_count}</p>
+            <p className="text-xs text-gray-500">signed up</p>
+          </div>
+        </div>
+      </>
+    );
+  };
+
   // Campaign detail — Open (sponsor it)
   if (campaign && campaign.status === 'Open') {
-    const goal = goals.find((g) => g.id === campaign.goal_id);
     return (
       <>
         <Page.Header className="p-0">
@@ -235,21 +292,8 @@ export default function BusinessPage() {
             startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
           />
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <Chip label={goal?.category ?? ''} />
-          <p className="text-sm text-gray-600">{campaign.location}</p>
-          <p>{campaign.description}</p>
-
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
-            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
-            {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
-            )}
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
-            <p className="text-sm"><span className="font-semibold">Event:</span> {formatDate(campaign.event_date)}</p>
-            <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {formatDate(campaign.sponsorship_deadline)}</p>
-          </div>
+        <Page.Main className="flex flex-col gap-3">
+          {campaignInfoRows(campaign)}
 
           <Button size="lg" variant="primary" className="w-full" onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}>
             Sponsor — {campaign.funding_required} EURC
@@ -262,7 +306,6 @@ export default function BusinessPage() {
 
   // Campaign detail — PendingReview (approve/reject)
   if (campaign && campaign.status === 'PendingReview') {
-    const goal = goals.find((g) => g.id === campaign.goal_id);
     return (
       <>
         <Page.Header className="p-0">
@@ -271,22 +314,8 @@ export default function BusinessPage() {
             startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
           />
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            <Chip label={goal?.category ?? ''} />
-            <Chip label="Pending Review" />
-          </div>
-          <p className="font-semibold">{campaign.title}</p>
-          <p className="text-sm text-gray-600">{campaign.ngo} · {campaign.location}</p>
-
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count}</p>
-            <p className="text-sm"><span className="font-semibold">Required:</span> {campaign.min_volunteers}–{campaign.max_volunteers}</p>
-            {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
-            )}
-            <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
-          </div>
+        <Page.Main className="flex flex-col gap-3">
+          {campaignInfoRows(campaign)}
 
           <p className="font-semibold">Event Photos</p>
           <div className="grid grid-cols-2 gap-2">
@@ -301,14 +330,12 @@ export default function BusinessPage() {
             )}
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-            <p className="text-sm font-semibold">NGO Contact</p>
-            <p className="text-sm">{campaign.ngo}</p>
-            {campaign.ngo_contact && <p className="text-sm">{campaign.ngo_contact}</p>}
-            <p className="text-xs text-gray-400">
-              Contact the NGO if photos need to be resubmitted
-            </p>
-          </div>
+          {campaign.ngo_contact && (
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+              <p className="text-sm font-semibold">NGO Contact</p>
+              <p className="text-sm">{campaign.ngo} · {campaign.ngo_contact}</p>
+            </div>
+          )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-800">
@@ -335,7 +362,6 @@ export default function BusinessPage() {
 
   // Campaign detail — any other status (view only)
   if (campaign) {
-    const goal = goals.find((g) => g.id === campaign.goal_id);
     return (
       <>
         <Page.Header className="p-0">
@@ -344,22 +370,8 @@ export default function BusinessPage() {
             startAdornment={<button onClick={() => setSelectedCampaign(null)}>← Back</button>}
           />
         </Page.Header>
-        <Page.Main className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            <Chip label={campaign.status} />
-            <Chip label={goal?.category ?? ''} />
-          </div>
-          <p className="text-sm text-gray-600">{campaign.location}</p>
-          <p>{campaign.description}</p>
-
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Organizer:</span> {campaign.ngo}</p>
-            <p className="text-sm"><span className="font-semibold">Volunteers:</span> {campaign.volunteer_count}/{campaign.max_volunteers}</p>
-            {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
-            )}
-            <p className="text-sm"><span className="font-semibold">Your sponsorship:</span> {campaign.funding_required} EURC</p>
-          </div>
+        <Page.Main className="flex flex-col gap-3">
+          {campaignInfoRows(campaign)}
 
           {campaign.status === 'Completed' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
@@ -371,7 +383,7 @@ export default function BusinessPage() {
           {campaign.status === 'Expired' && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-red-800">Campaign expired</p>
-              <p className="text-sm text-red-600 mt-1">Funds refunded to your wallet</p>
+              <p className="text-sm text-red-600 mt-1">Sponsor can claim refund from their wallet</p>
             </div>
           )}
 
