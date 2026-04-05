@@ -2,6 +2,7 @@
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
+import { formatDate } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
@@ -429,37 +430,92 @@ export default function NgoPage() {
             <Chip label={goal?.category ?? ''} />
           </div>
 
-          {/* #13: show campaign description */}
           <p className="text-sm text-gray-600">{campaign.description}</p>
 
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <p className="text-sm"><span className="font-semibold">Location:</span> {campaign.location}</p>
-            <p className="text-sm"><span className="font-semibold">Sponsor:</span> {campaign.sponsor ?? 'Awaiting sponsor'}</p>
-            {campaign.interest_count > 0 && (
-              <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
+          {/* Info rows */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">📍</span>
+              <span>{campaign.location}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">📅</span>
+              <span>
+                {formatDate(campaign.event_date)}
+                {campaign.status === 'Active' && (() => {
+                  const days = Math.ceil((new Date(campaign.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  if (days < 0) return <span className="text-gray-400"> · {-days}d ago</span>;
+                  if (days === 0) return <span className="text-green-600 font-semibold"> · Today</span>;
+                  return <span className="text-gray-400"> · in {days}d</span>;
+                })()}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-400 w-5 text-center">💰</span>
+              <span>{campaign.funding_required} EURC</span>
+              {!campaign.sponsor && <Chip label="Needs sponsor" />}
+            </div>
+            {campaign.sponsor && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-400 w-5 text-center">🤝</span>
+                <span>{campaign.sponsor}</span>
+              </div>
             )}
-            {new Date().toISOString().split('T')[0] >= campaign.event_date && (
-              <p className="text-sm">
-                <span className="font-semibold">Volunteers:</span>{' '}
-                {campaign.volunteer_count}/{campaign.max_volunteers} checked in
-                <span className="text-gray-400"> (min {campaign.min_volunteers})</span>
-              </p>
-            )}
-            {new Date().toISOString().split('T')[0] < campaign.event_date && (
-              <p className="text-sm">
-                <span className="font-semibold">Volunteers needed:</span>{' '}
-                {campaign.min_volunteers}–{campaign.max_volunteers}
-              </p>
-            )}
-            <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
-            <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
             {campaign.status === 'Open' && (
-              <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <span className="w-5 text-center">⏰</span>
+                <span>Find sponsor by {formatDate(campaign.sponsorship_deadline)}</span>
+              </div>
             )}
             {campaign.status === 'Active' && (
-              <p className="text-sm"><span className="font-semibold">Submit evidence by:</span> {campaign.event_deadline}</p>
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <span className="w-5 text-center">⏰</span>
+                <span>Submit evidence by {formatDate(campaign.event_deadline)}</span>
+              </div>
             )}
           </div>
+
+          {/* Stats grid */}
+          {(() => {
+            const isToday = new Date().toISOString().split('T')[0] >= campaign.event_date;
+            const progress = isToday ? Math.min(campaign.volunteer_count / campaign.min_volunteers, 1) : 0;
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {isToday ? (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xl font-bold">{campaign.volunteer_count}/{campaign.min_volunteers}</p>
+                      <p className="text-xs text-gray-500">checked in</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-xl font-bold">{campaign.min_volunteers}–{campaign.max_volunteers}</p>
+                      <p className="text-xs text-gray-500">needed</p>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-lg p-3 text-center">
+                    <p className="text-xl font-bold text-blue-600">{campaign.interest_count}</p>
+                    <p className="text-xs text-gray-500">signed up</p>
+                  </div>
+                </div>
+                {isToday && (
+                  <div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${progress >= 1 ? 'bg-green-500' : 'bg-amber-500'}`}
+                        style={{ width: `${progress * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 text-center">
+                      {progress >= 1
+                        ? 'Minimum reached — ready to submit!'
+                        : `${campaign.min_volunteers - campaign.volunteer_count} more needed to submit`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {campaign.status === 'Active' && new Date().toISOString().split('T')[0] <= campaign.event_date && (
             <Button size="lg" variant="secondary" className="w-full" onClick={() => setShowQR(true)}>
@@ -471,12 +527,6 @@ export default function NgoPage() {
             <Button size="lg" variant="primary" className="w-full" onClick={() => setShowSubmit(true)}>
               Submit Completion
             </Button>
-          )}
-
-          {campaign.status === 'Active' && campaign.volunteer_count < campaign.min_volunteers && (
-            <p className="text-xs text-amber-600 text-center">
-              Need {campaign.min_volunteers - campaign.volunteer_count} more volunteers before you can submit
-            </p>
           )}
 
           {campaign.status === 'PendingReview' && (

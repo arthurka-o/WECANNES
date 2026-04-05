@@ -2,6 +2,7 @@
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
+import { formatDate } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
@@ -204,8 +205,8 @@ export default function BusinessPage() {
               <p className="text-sm"><span className="font-semibold">Signed up:</span> <span className="text-blue-600">{campaign.interest_count}</span></p>
             )}
             <p className="text-sm"><span className="font-semibold">Funding:</span> {campaign.funding_required} EURC</p>
-            <p className="text-sm"><span className="font-semibold">Event:</span> {campaign.event_date}</p>
-            <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
+            <p className="text-sm"><span className="font-semibold">Event:</span> {formatDate(campaign.event_date)}</p>
+            <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {formatDate(campaign.sponsorship_deadline)}</p>
           </div>
 
           <Button size="lg" variant="primary" className="w-full" onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}>

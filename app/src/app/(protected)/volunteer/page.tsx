@@ -2,6 +2,7 @@
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { Page } from '@/components/PageLayout';
+import { formatDate } from '@/lib/utils';
 import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
@@ -800,7 +801,7 @@ export default function VolunteerPage() {
               </p>
             )}
             <p className="text-sm">
-              <span className="font-semibold">Event date:</span> {campaign.event_date}
+              <span className="font-semibold">Event date:</span> {formatDate(campaign.event_date)}
             </p>
           </div>
 
@@ -828,7 +829,7 @@ export default function VolunteerPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
               <p className="font-semibold text-blue-800">You&apos;re signed up!</p>
               <p className="text-sm text-blue-600 mt-1">
-                Check-in opens on {campaign.event_date}
+                Check-in opens on {formatDate(campaign.event_date)}
               </p>
             </div>
           )}
