@@ -1,6 +1,7 @@
 'use client';
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
+import { CampaignCard } from '@/components/CampaignCard';
 import { Page } from '@/components/PageLayout';
 import { formatDate } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
@@ -363,7 +364,7 @@ export default function BusinessPage() {
             onClick={() => setTab('browse')}
             className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'browse' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
-            Sponsor ({openCampaigns.length})
+            Available ({openCampaigns.length})
           </button>
           <button
             onClick={() => setTab('review')}
@@ -375,7 +376,7 @@ export default function BusinessPage() {
             onClick={() => setTab('sponsored')}
             className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'sponsored' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
-            My ({sponsored.length})
+            Sponsored ({sponsored.length})
           </button>
         </div>
 
@@ -386,17 +387,12 @@ export default function BusinessPage() {
             {openCampaigns.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
-                    <Chip label={goal?.category ?? ''} />
-                  </div>
-                  <p className="text-sm text-gray-600">{c.ngo} · {c.location}</p>
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
                   <div className="flex justify-between text-sm">
                     <span className="font-semibold">{c.funding_required} EURC</span>
                     {c.interest_count > 0 && <span className="text-blue-600">{c.interest_count} signed up</span>}
                   </div>
-                </button>
+                </CampaignCard>
               );
             })}
           </>
@@ -409,14 +405,10 @@ export default function BusinessPage() {
             {pendingReview.map((c) => {
               const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
-                    <Chip label={goal?.category ?? ''} />
-                  </div>
-                  <p className="text-sm text-gray-600">{c.ngo} · {c.volunteer_count} checked in</p>
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
+                  <p className="text-sm text-gray-600">{c.volunteer_count} checked in</p>
                   <p className="text-sm font-semibold">{c.funding_required} EURC to release</p>
-                </button>
+                </CampaignCard>
               );
             })}
           </>
@@ -427,15 +419,14 @@ export default function BusinessPage() {
             <p className="text-sm text-gray-500">Campaigns you sponsored</p>
             {sponsored.length === 0 && <p className="text-center text-gray-400 mt-4">No sponsored campaigns yet</p>}
             {sponsored.map((c) => {
+              const goal = goals.find((g) => g.id === c.goal_id);
               return (
-                <button key={c.id} onClick={() => setSelectedCampaign(c.id)} className="text-left bg-white border rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
+                <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-semibold">{c.funding_required} EURC</span>
                     <Chip label={c.status} />
                   </div>
-                  <p className="text-sm text-gray-600">{c.ngo} · {c.location}</p>
-                  <p className="text-sm font-semibold">{c.funding_required} EURC</p>
-                </button>
+                </CampaignCard>
               );
             })}
           </>

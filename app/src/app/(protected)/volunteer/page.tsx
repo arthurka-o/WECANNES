@@ -1,6 +1,7 @@
 'use client';
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
+import { CampaignCard } from '@/components/CampaignCard';
 import { Page } from '@/components/PageLayout';
 import { formatDate } from '@/lib/utils';
 import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
@@ -924,16 +925,14 @@ export default function VolunteerPage() {
           const dateLabel = new Date(c.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
           const isSignedUp = interestedCampaigns.includes(c.id);
           return (
-            <button
+            <CampaignCard
               key={c.id}
+              title={c.title}
+              category={g?.category ?? ''}
+              location={c.location}
+              coverImage={c.cover_image}
               onClick={() => setSelectedCampaign(c.id)}
-              className="text-left bg-white border rounded-xl p-4 space-y-2"
             >
-              <div className="flex justify-between items-start">
-                <p className="font-semibold">{c.title}</p>
-                <Chip label={g?.category ?? ''} />
-              </div>
-              <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
                 <span className={daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
                   {timeLabel} · {dateLabel}
@@ -943,7 +942,7 @@ export default function VolunteerPage() {
               {c.interest_count > 0 && (
                 <p className="text-xs text-gray-400">{c.interest_count} signed up</p>
               )}
-            </button>
+            </CampaignCard>
           );
         })}
 
@@ -954,21 +953,19 @@ export default function VolunteerPage() {
         {tab === 'current' && currentCampaigns.map((c) => {
           const g = goals.find((g) => g.id === c.goal_id);
           return (
-            <button
+            <CampaignCard
               key={c.id}
+              title={c.title}
+              category={g?.category ?? ''}
+              location={c.location}
+              coverImage={c.cover_image}
               onClick={() => setSelectedCampaign(c.id)}
-              className="text-left bg-white border rounded-xl p-4 space-y-2"
             >
-              <div className="flex justify-between items-start">
-                <p className="font-semibold">{c.title}</p>
-                <Chip label={g?.category ?? ''} />
-              </div>
-              <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
                 <span>{c.volunteer_count} checked in</span>
                 <span className="text-green-600">You&apos;re in</span>
               </div>
-            </button>
+            </CampaignCard>
           );
         })}
 
@@ -980,23 +977,21 @@ export default function VolunteerPage() {
           const g = goals.find((g) => g.id === c.goal_id);
           const claimed = claimedCampaigns.includes(c.id);
           return (
-            <button
+            <CampaignCard
               key={c.id}
+              title={c.title}
+              category={g?.category ?? ''}
+              location={c.location}
+              coverImage={c.cover_image}
               onClick={() => setSelectedCampaign(c.id)}
-              className="text-left bg-white border rounded-xl p-4 space-y-2"
             >
-              <div className="flex justify-between items-start">
-                <p className="font-semibold">{c.title}</p>
-                <Chip label={g?.category ?? ''} />
-              </div>
-              <p className="text-sm text-gray-600">{c.location}</p>
               <p className="text-sm">
                 {claimed
                   ? <span className="text-green-600">Reward claimed</span>
                   : <span className="text-amber-600">Claim your reward</span>
                 }
               </p>
-            </button>
+            </CampaignCard>
           );
         })}
 

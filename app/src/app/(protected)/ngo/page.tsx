@@ -1,6 +1,7 @@
 'use client';
 
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
+import { CampaignCard } from '@/components/CampaignCard';
 import { Page } from '@/components/PageLayout';
 import { formatDate } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
@@ -610,22 +611,16 @@ export default function NgoPage() {
         {ngoCampaigns.map((c) => {
           const goal = goals.find((g) => g.id === c.goal_id);
           return (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCampaign(c.id)}
-              className="text-left bg-white border rounded-xl p-4 space-y-2"
-            >
-              <div className="flex justify-between items-start">
-                <p className="font-semibold">{c.title}</p>
+            <CampaignCard key={c.id} title={c.title} category={goal?.category ?? ''} location={c.location} coverImage={c.cover_image} onClick={() => setSelectedCampaign(c.id)}>
+              <div className="flex justify-between text-sm">
+                <span>
+                  {c.interest_count > 0 ? `${c.interest_count} signed up · ` : ''}
+                  {c.volunteer_count > 0 ? `${c.volunteer_count} checked in · ` : ''}
+                  {c.funding_required} EURC
+                </span>
                 <Chip label={c.status} />
               </div>
-              <p className="text-sm text-gray-600">{goal?.title}</p>
-              <p className="text-sm">
-                {c.interest_count > 0 ? `${c.interest_count} signed up · ` : ''}
-                {c.volunteer_count > 0 ? `${c.volunteer_count} checked in · ` : ''}
-                {c.funding_required} EURC
-              </p>
-            </button>
+            </CampaignCard>
           );
         })}
       </Page.Main>
