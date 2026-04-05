@@ -183,6 +183,47 @@ export default function BusinessPage() {
     }
   };
 
+  const confirmDialog = (
+    <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {confirmAction?.type === 'fund' && 'Sponsor campaign'}
+            {confirmAction?.type === 'approve' && 'Release funds'}
+            {confirmAction?.type === 'reject' && 'Reject submission'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmAction?.type === 'fund' && `Sponsor this campaign for ${campaigns.find(c => c.id === confirmAction.campaignId)?.funding_required} EURC?`}
+            {confirmAction?.type === 'approve' && 'Approve and release funds to the NGO?'}
+            {confirmAction?.type === 'reject' && 'Reject this submission? The NGO can resubmit.'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogClose asChild>
+            <Button variant="secondary" size="lg" className="w-full">Cancel</Button>
+          </AlertDialogClose>
+          <Button
+            variant={confirmAction?.type === 'reject' ? 'secondary' : 'primary'}
+            size="lg"
+            className="w-full"
+            disabled={actionPending}
+            onClick={async () => {
+              if (!confirmAction) return;
+              setActionPending(true);
+              if (confirmAction.type === 'fund') await handleFund(confirmAction.campaignId);
+              if (confirmAction.type === 'approve') await handleApprove(confirmAction.campaignId);
+              if (confirmAction.type === 'reject') await handleReject(confirmAction.campaignId);
+              setActionPending(false);
+              setConfirmAction(null);
+            }}
+          >
+            {actionPending ? 'Processing...' : confirmAction?.type === 'fund' ? 'Sponsor' : confirmAction?.type === 'approve' ? 'Approve' : 'Reject'}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   // Campaign detail — Open (sponsor it)
   if (campaign && campaign.status === 'Open') {
     const goal = goals.find((g) => g.id === campaign.goal_id);
@@ -213,6 +254,7 @@ export default function BusinessPage() {
           <Button size="lg" variant="primary" className="w-full" onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}>
             Sponsor — {campaign.funding_required} EURC
           </Button>
+          {confirmDialog}
         </Page.Main>
       </>
     );
@@ -285,6 +327,7 @@ export default function BusinessPage() {
           <p className="text-xs text-gray-400 text-center">
             Auto-releases in 7 days if no action taken.
           </p>
+          {confirmDialog}
         </Page.Main>
       </>
     );
@@ -432,45 +475,6 @@ export default function BusinessPage() {
           </>
         )}
       </Page.Main>
-
-      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmAction?.type === 'fund' && 'Sponsor campaign'}
-              {confirmAction?.type === 'approve' && 'Release funds'}
-              {confirmAction?.type === 'reject' && 'Reject submission'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmAction?.type === 'fund' && `Sponsor this campaign for ${campaigns.find(c => c.id === confirmAction.campaignId)?.funding_required} EURC?`}
-              {confirmAction?.type === 'approve' && 'Approve and release funds to the NGO?'}
-              {confirmAction?.type === 'reject' && 'Reject this submission? The NGO can resubmit.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogClose asChild>
-              <Button variant="secondary" size="lg" className="w-full">Cancel</Button>
-            </AlertDialogClose>
-            <Button
-              variant={confirmAction?.type === 'reject' ? 'secondary' : 'primary'}
-              size="lg"
-              className="w-full"
-              disabled={actionPending}
-              onClick={async () => {
-                if (!confirmAction) return;
-                setActionPending(true);
-                if (confirmAction.type === 'fund') await handleFund(confirmAction.campaignId);
-                if (confirmAction.type === 'approve') await handleApprove(confirmAction.campaignId);
-                if (confirmAction.type === 'reject') await handleReject(confirmAction.campaignId);
-                setActionPending(false);
-                setConfirmAction(null);
-              }}
-            >
-              {actionPending ? 'Processing...' : confirmAction?.type === 'fund' ? 'Sponsor' : confirmAction?.type === 'approve' ? 'Approve' : 'Reject'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
