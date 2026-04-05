@@ -3,7 +3,7 @@
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/abi/CampaignEscrow';
 import { CampaignCard } from '@/components/CampaignCard';
 import { Page } from '@/components/PageLayout';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatStatus } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
@@ -517,7 +517,7 @@ export default function BusinessPage() {
                       c.status === 'Active' ? 'bg-blue-100 text-blue-800' :
                       c.status === 'Expired' ? 'bg-red-100 text-red-800' :
                       'bg-surface-container text-on-surface-variant'
-                    }`}>{c.status}</span>
+                    }`}>{formatStatus(c.status)}</span>
                   </div>
                 </CampaignCard>
               );
