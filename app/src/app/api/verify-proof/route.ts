@@ -1,4 +1,5 @@
 import { hasCheckedIn, recordCheckIn, setUserNullifier } from '@/lib/db';
+import { writeFileSync } from 'fs';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -40,21 +41,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Return the v3 proof fields so frontend can submit on-chain via MiniKit
-  console.log('=== VERIFY PROOF DEBUG ===');
-  console.log('protocol_version:', payload?.protocol_version);
-  console.log('responses count:', payload?.responses?.length);
-  if (payload?.responses) {
-    payload.responses.forEach((r: Record<string, unknown>, i: number) => {
-      console.log(`response[${i}]:`, {
-        identifier: r.identifier,
-        has_merkle_root: !!r.merkle_root,
-        has_proof: !!r.proof,
-        has_nullifier: !!r.nullifier,
-        proof_type: typeof r.proof,
-        proof_is_array: Array.isArray(r.proof),
-      });
-    });
-  }
+  // Debug: write payload to file since console.log is swallowed in production
+  try {
+    writeFileSync('/tmp/verify-proof-debug.json', JSON.stringify({ payload, verifyRes }, null, 2));
+  } catch {}
+
 
   const v3Response = payload?.responses?.find(
     (r: { merkle_root?: string }) => r.merkle_root,
