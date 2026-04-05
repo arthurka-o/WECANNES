@@ -8,12 +8,7 @@ import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose, Button, Chip, LiveFeedback, Tabs, TabItem, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
-import { Compass } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
-import { Compass as CompassSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
-import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
-import { User } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
-import { User as UserSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose, Button, LiveFeedback } from '@worldcoin/mini-apps-ui-kit-react';
 import jsQR from 'jsqr';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -212,33 +207,38 @@ function WorldIdCheckIn({
         return;
       }
 
+      // On-chain check-in (don't fail if this part errors)
       if (data.v3Proof) {
-        const { merkle_root, nullifier, proof } = data.v3Proof;
-        const [unpackedProof] = decodeAbiParameters(
-          [{ type: 'uint256[8]' }],
-          proof as `0x${string}`,
-        );
+        try {
+          const { merkle_root, nullifier, proof } = data.v3Proof;
+          const [unpackedProof] = decodeAbiParameters(
+            [{ type: 'uint256[8]' }],
+            proof as `0x${string}`,
+          );
 
-        const txResult = await MiniKit.sendTransaction({
-          chainId: 480,
-          transactions: [
-            {
-              to: CAMPAIGN_ESCROW_ADDRESS,
-              data: encodeFunctionData({
-                abi: CAMPAIGN_ESCROW_ABI,
-                functionName: 'checkIn',
-                args: [
-                  BigInt(campaignId),
-                  BigInt(merkle_root),
-                  BigInt(nullifier),
-                  unpackedProof,
-                ],
-              }),
-            },
-          ],
-        });
+          const txResult = await MiniKit.sendTransaction({
+            chainId: 480,
+            transactions: [
+              {
+                to: CAMPAIGN_ESCROW_ADDRESS,
+                data: encodeFunctionData({
+                  abi: CAMPAIGN_ESCROW_ABI,
+                  functionName: 'checkIn',
+                  args: [
+                    BigInt(campaignId),
+                    BigInt(merkle_root),
+                    BigInt(nullifier),
+                    unpackedProof,
+                  ],
+                }),
+              },
+            ],
+          });
 
-        await poll(txResult.data.userOpHash);
+          await poll(txResult.data.userOpHash);
+        } catch (err) {
+          console.error('On-chain check-in failed:', err);
+        }
       }
 
       setState('success');
@@ -251,8 +251,8 @@ function WorldIdCheckIn({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-tertiary/20 text-center shadow-sm">
+    <div className="space-y-4 flex flex-col items-center">
+      <div className="bg-surface-container-lowest rounded-[20px] p-5 border border-tertiary/20 text-center shadow-sm w-full">
         <span className="material-symbols-outlined text-tertiary text-3xl mb-2" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_scanner</span>
         <p className="font-headline font-bold text-on-surface">QR Verified!</p>
         <p className="text-xs text-on-surface-variant mt-1">Now confirm your identity with World ID</p>
@@ -264,7 +264,6 @@ function WorldIdCheckIn({
           success: 'Verified!',
         }}
         state={state}
-        className="w-full"
       >
         <button
           onClick={handleVerify}
@@ -284,7 +283,6 @@ function ProfileView({
   campaigns,
   goals,
   checkedInCampaigns,
-  claimedCampaigns,
   username,
   profilePictureUrl,
   myRewards,
@@ -292,7 +290,6 @@ function ProfileView({
   campaigns: Campaign[];
   goals: Goal[];
   checkedInCampaigns: number[];
-  claimedCampaigns: number[];
   username?: string;
   profilePictureUrl?: string;
   myRewards: CivicReward[];
@@ -615,7 +612,6 @@ export default function VolunteerPage() {
           campaigns={campaigns}
           goals={goals}
           checkedInCampaigns={checkedInCampaigns}
-          claimedCampaigns={claimedCampaigns}
           username={session?.user?.username}
           profilePictureUrl={session?.user?.profilePictureUrl}
           myRewards={myRewards}
@@ -767,7 +763,6 @@ export default function VolunteerPage() {
 
   // --- Active campaign detail + check-in / interest flow ---
   if (campaign && goal) {
-    const spotsLeft = campaign.max_volunteers - campaign.volunteer_count;
     const today = new Date().toISOString().split('T')[0];
     const isEventDay = today >= campaign.event_date;
     const isInterested = interestedCampaigns.includes(campaign.id);
