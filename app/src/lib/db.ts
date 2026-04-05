@@ -249,6 +249,12 @@ export function getClaimedCampaigns(nullifier: string): number[] {
   return rows.map((r) => r.claimed_campaign_id);
 }
 
+export function getClaimedRewards(nullifier: string): CivicReward[] {
+  return db.prepare(
+    'SELECT * FROM civic_rewards WHERE claimed_by = ?'
+  ).all(nullifier) as CivicReward[];
+}
+
 export function getClaimForCampaign(nullifier: string, campaignId: number): CivicReward | null {
   return (db.prepare(
     'SELECT * FROM civic_rewards WHERE claimed_by = ? AND claimed_campaign_id = ?'

@@ -285,6 +285,7 @@ function ProfileView({
   claimedCampaigns,
   username,
   profilePictureUrl,
+  myRewards,
   onSelectCampaign,
 }: {
   campaigns: Campaign[];
@@ -293,6 +294,7 @@ function ProfileView({
   claimedCampaigns: number[];
   username?: string;
   profilePictureUrl?: string;
+  myRewards: CivicReward[];
   onSelectCampaign: (id: number) => void;
 }) {
   const router = useRouter();
@@ -300,10 +302,6 @@ function ProfileView({
   const completedUnclaimed = myCampaigns.filter(
     (c) => c.status === 'Completed' && !claimedCampaigns.includes(c.id),
   );
-  const claimedList = myCampaigns.filter(
-    (c) => claimedCampaigns.includes(c.id),
-  );
-  const totalClaimed = claimedCampaigns.length;
 
   // Impact summary from campaign categories
   const categoryCounts: Record<string, number> = {};
@@ -351,7 +349,7 @@ function ProfileView({
             <p className="text-xs text-gray-500">Check-ins</p>
           </div>
           <div>
-            <p className="text-xl font-bold">{totalClaimed}</p>
+            <p className="text-xl font-bold">{myRewards.length}</p>
             <p className="text-xs text-gray-500">Rewards</p>
           </div>
         </div>
@@ -385,22 +383,31 @@ function ProfileView({
           </>
         )}
 
-        {/* Claimed rewards history */}
-        {claimedList.length > 0 && (
+        {/* My rewards */}
+        {myRewards.length > 0 && (
           <>
-            <p className="font-semibold">Claimed Rewards</p>
-            {claimedList.map((c) => {
-              const g = goals.find((g) => g.id === c.goal_id);
-              return (
-                <div key={c.id} className="bg-white border rounded-xl p-4 space-y-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-semibold">{c.title}</p>
-                    <Chip label={g?.category ?? ''} />
-                  </div>
-                  <p className="text-sm text-green-600">Reward claimed</p>
+            <p className="font-semibold">My Rewards</p>
+            {myRewards.map((r) => (
+              <div key={r.id} className="bg-white border rounded-xl p-4 flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">{r.name}</p>
+                  <p className="text-xs text-gray-400">Claimed {r.claimed_at ? new Date(r.claimed_at).toLocaleDateString() : ''}</p>
                 </div>
-              );
-            })}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    const res = await fetch(r.file_path);
+                    const blob = await res.blob();
+                    const filename = r.file_path.split('/').pop() ?? 'reward';
+                    const file = new File([blob], filename, { type: blob.type });
+                    MiniKit.share({ files: [file] });
+                  }}
+                >
+                  Save
+                </Button>
+              </div>
+            ))}
           </>
         )}
 
@@ -432,6 +439,7 @@ export default function VolunteerPage() {
   const [claimedCampaigns, setClaimedCampaigns] = useState<number[]>([]);
   const [rewards, setRewards] = useState<RewardSummary[]>([]);
   const [claimedReward, setClaimedReward] = useState<CivicReward | null>(null);
+  const [myRewards, setMyRewards] = useState<CivicReward[]>([]);
   const [claiming, setClaiming] = useState(false);
   const [confirmReward, setConfirmReward] = useState<string | null>(null);
 
@@ -461,7 +469,10 @@ export default function VolunteerPage() {
         body: JSON.stringify({ walletAddress }),
       })
         .then((r) => r.json())
-        .then((data) => setClaimedCampaigns(data.claimedCampaigns));
+        .then((data) => {
+          setClaimedCampaigns(data.claimedCampaigns);
+          setMyRewards(data.myRewards ?? []);
+        });
     }
   }, [walletAddress, step, claiming]);
 
@@ -539,6 +550,7 @@ export default function VolunteerPage() {
           claimedCampaigns={claimedCampaigns}
           username={session?.user?.username}
           profilePictureUrl={session?.user?.profilePictureUrl}
+          myRewards={myRewards}
           onSelectCampaign={(id) => { setSelectedCampaign(id); setMainTab('campaigns'); }}
         />
         {bottomTabs}

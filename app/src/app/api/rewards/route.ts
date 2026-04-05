@@ -1,4 +1,4 @@
-import { claimReward, getClaimForCampaign, getClaimedCampaigns, getNullifierByWallet, getRewardSummaries } from '@/lib/db';
+import { claimReward, getClaimForCampaign, getClaimedCampaigns, getClaimedRewards, getNullifierByWallet, getRewardSummaries } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET — reward summaries (name, total, remaining)
@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
 
   const claimedCampaigns = getClaimedCampaigns(nullifier);
   const claimedReward = campaignId != null ? getClaimForCampaign(nullifier, campaignId) : null;
+  const myRewards = getClaimedRewards(nullifier);
 
-  return NextResponse.json({ claimedCampaigns, claimedReward });
+  return NextResponse.json({ claimedCampaigns, claimedReward, myRewards });
 }
