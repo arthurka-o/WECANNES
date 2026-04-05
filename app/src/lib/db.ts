@@ -48,7 +48,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS campaigns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id INTEGER PRIMARY KEY,
     goal_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
@@ -370,11 +370,12 @@ export function createCampaign(data: {
   const sponsorshipDeadline = addMonths(now, 1);
   const eventDeadline = addMonths(data.event_date, 1);
 
-  const result = db.prepare(`
-    INSERT INTO campaigns (goal_id, title, description, ngo, ngo_contact, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status, cover_image)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?)
-  `).run(data.goal_id, data.title, data.description, data.ngo, data.ngo_contact ?? null, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location, data.cover_image ?? null);
-  return Number(result.lastInsertRowid);
+  const id = Math.floor(Math.random() * 900000) + 100000; // 6-digit random ID
+  db.prepare(`
+    INSERT INTO campaigns (id, goal_id, title, description, ngo, ngo_contact, funding_required, min_volunteers, max_volunteers, event_date, sponsorship_deadline, event_deadline, location, status, cover_image)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Open', ?)
+  `).run(id, data.goal_id, data.title, data.description, data.ngo, data.ngo_contact ?? null, data.funding_required, data.min_volunteers, data.max_volunteers, data.event_date, sponsorshipDeadline, eventDeadline, data.location, data.cover_image ?? null);
+  return id;
 }
 
 export function updateCampaignStatus(campaignId: number, status: string): void {
