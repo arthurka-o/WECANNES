@@ -34,6 +34,7 @@ export default function ClientProviders({
 }: ClientProvidersProps) {
   return (
     <ErudaProvider>
+      {/* @ts-expect-error MiniKit types mismatch between dev and prod */}
       <MiniKitProvider appId={process.env.NEXT_PUBLIC_APP_ID as `app_${string}`}>
         <SessionProvider session={session}>{children}</SessionProvider>
       </MiniKitProvider>

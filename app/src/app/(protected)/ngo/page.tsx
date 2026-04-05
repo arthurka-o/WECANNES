@@ -7,8 +7,7 @@ import { formatDate, formatStatus } from '@/lib/utils';
 import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
-import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
-import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
+
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
