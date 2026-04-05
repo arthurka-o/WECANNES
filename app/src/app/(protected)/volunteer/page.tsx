@@ -6,7 +6,7 @@ import type { Campaign, CivicReward, Goal, RewardSummary } from '@/lib/db';
 import { IDKit, orbLegacy, type RpContext } from '@worldcoin/idkit';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
-import { Button, Chip, LiveFeedback, Tabs, TabItem, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose, Button, Chip, LiveFeedback, Tabs, TabItem, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Compass } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { Compass as CompassSolid } from '@worldcoin/mini-apps-ui-kit-react/icons/solid';
 import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
@@ -416,7 +416,7 @@ export default function VolunteerPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
   const [step, setStep] = useState<'browse' | 'scan' | 'verify' | 'done'>('browse');
   const [showRewards, setShowRewards] = useState(false);
-  const [tab, setTab] = useState<'active' | 'completed'>('active');
+  const [tab, setTab] = useState<'upcoming' | 'current' | 'completed'>('upcoming');
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [checkedInCampaigns, setCheckedInCampaigns] = useState<number[]>([]);
@@ -425,6 +425,7 @@ export default function VolunteerPage() {
   const [rewards, setRewards] = useState<RewardSummary[]>([]);
   const [claimedReward, setClaimedReward] = useState<CivicReward | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [confirmReward, setConfirmReward] = useState<string | null>(null);
 
   const walletAddress = session?.user?.walletAddress;
 
@@ -474,8 +475,12 @@ export default function VolunteerPage() {
     }
   }, [walletAddress, selectedCampaign, claiming]);
 
-  const activeCampaigns = campaigns
-    .filter((c) => c.status === 'Active' || c.status === 'Open')
+  const today = new Date().toISOString().split('T')[0];
+  const upcomingCampaigns = campaigns
+    .filter((c) => (c.status === 'Active' || c.status === 'Open') && !checkedInCampaigns.includes(c.id) && c.event_date >= today)
+    .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
+  const currentCampaigns = campaigns
+    .filter((c) => c.status === 'Active' && checkedInCampaigns.includes(c.id))
     .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime());
   const completedCampaigns = campaigns.filter(
     (c) => c.status === 'Completed' && checkedInCampaigns.includes(c.id)
@@ -489,7 +494,6 @@ export default function VolunteerPage() {
 
   const handleClaimReward = async (rewardName: string) => {
     if (!walletAddress || !campaign) return;
-    if (!confirm(`Claim "${rewardName}"? This cannot be undone.`)) return;
     setClaiming(true);
     const res = await fetch('/api/rewards', {
       method: 'POST',
@@ -500,6 +504,7 @@ export default function VolunteerPage() {
     if (!data.success) {
       alert(data.error || 'Failed to claim reward');
     }
+    setConfirmReward(null);
     setClaiming(false);
   };
 
@@ -612,7 +617,7 @@ export default function VolunteerPage() {
               {rewards.map((r) => (
                 <button
                   key={r.name}
-                  onClick={() => handleClaimReward(r.name)}
+                  onClick={() => setConfirmReward(r.name)}
                   disabled={r.remaining <= 0 || claiming}
                   className={`text-left border rounded-xl p-4 flex justify-between items-center ${
                     r.remaining <= 0 ? 'opacity-50' : 'bg-white'
@@ -629,6 +634,31 @@ export default function VolunteerPage() {
               )}
             </>
           )}
+
+          <AlertDialog open={!!confirmReward} onOpenChange={(open) => { if (!open) setConfirmReward(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Claim reward</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Claim &quot;{confirmReward}&quot;? This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogClose asChild>
+                  <Button variant="secondary" size="lg" className="w-full">Cancel</Button>
+                </AlertDialogClose>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full"
+                  disabled={claiming}
+                  onClick={() => confirmReward && handleClaimReward(confirmReward)}
+                >
+                  {claiming ? 'Claiming...' : 'Claim'}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Page.Main>
       </>
     );
@@ -811,28 +841,33 @@ export default function VolunteerPage() {
         />
       </Page.Header>
       <Page.Main className="flex flex-col gap-3">
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <button
-            onClick={() => setTab('active')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'active' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            onClick={() => setTab('upcoming')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'upcoming' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
-            Upcoming ({activeCampaigns.length})
+            Upcoming ({upcomingCampaigns.length})
+          </button>
+          <button
+            onClick={() => setTab('current')}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'current' ? 'bg-black text-white' : 'bg-gray-100'}`}
+          >
+            Current ({currentCampaigns.length})
           </button>
           <button
             onClick={() => setTab('completed')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg ${tab === 'completed' ? 'bg-black text-white' : 'bg-gray-100'}`}
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg ${tab === 'completed' ? 'bg-black text-white' : 'bg-gray-100'}`}
           >
             Completed ({completedCampaigns.length})
           </button>
         </div>
 
-        {tab === 'active' && activeCampaigns.map((c) => {
+        {tab === 'upcoming' && upcomingCampaigns.map((c) => {
           const g = goals.find((g) => g.id === c.goal_id);
-          const spotsLeft = c.max_volunteers - c.volunteer_count;
-          const checkedIn = checkedInCampaigns.includes(c.id);
           const daysUntil = Math.ceil((new Date(c.event_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          const timeLabel = daysUntil < 0 ? `${-daysUntil}d ago` : daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
+          const timeLabel = daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`;
           const dateLabel = new Date(c.event_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const isSignedUp = interestedCampaigns.includes(c.id);
           return (
             <button
               key={c.id}
@@ -845,26 +880,45 @@ export default function VolunteerPage() {
               </div>
               <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span className={daysUntil < 0 ? 'text-gray-400' : daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
+                <span className={daysUntil === 0 ? 'text-green-600 font-semibold' : daysUntil <= 3 ? 'text-amber-600' : ''}>
                   {timeLabel} · {dateLabel}
                 </span>
-                <span>
-                  {c.interest_count > 0 && `${c.interest_count} signed up`}
-                  {c.interest_count > 0 && c.volunteer_count > 0 && ' · '}
-                  {c.volunteer_count > 0 && `${c.volunteer_count} checked in`}
-                </span>
+                {isSignedUp && <span className="text-blue-600">Signed up</span>}
               </div>
+              {c.interest_count > 0 && (
+                <p className="text-xs text-gray-400">{c.interest_count} signed up</p>
+              )}
+            </button>
+          );
+        })}
+
+        {tab === 'upcoming' && upcomingCampaigns.length === 0 && (
+          <p className="text-center text-gray-500 mt-8">No upcoming campaigns right now.</p>
+        )}
+
+        {tab === 'current' && currentCampaigns.map((c) => {
+          const g = goals.find((g) => g.id === c.goal_id);
+          return (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCampaign(c.id)}
+              className="text-left bg-white border rounded-xl p-4 space-y-2"
+            >
+              <div className="flex justify-between items-start">
+                <p className="font-semibold">{c.title}</p>
+                <Chip label={g?.category ?? ''} />
+              </div>
+              <p className="text-sm text-gray-600">{c.location}</p>
               <div className="flex justify-between text-sm text-gray-500">
-                <span>{spotsLeft} spots left</span>
-                {checkedIn && <span className="text-green-600">Checked in</span>}
-                {!checkedIn && interestedCampaigns.includes(c.id) && <span className="text-blue-600">Signed up</span>}
+                <span>{c.volunteer_count} checked in</span>
+                <span className="text-green-600">You&apos;re in</span>
               </div>
             </button>
           );
         })}
 
-        {tab === 'active' && activeCampaigns.length === 0 && (
-          <p className="text-center text-gray-500 mt-8">No active campaigns right now.</p>
+        {tab === 'current' && currentCampaigns.length === 0 && (
+          <p className="text-center text-gray-500 mt-8">No active check-ins. Sign up for a campaign!</p>
         )}
 
         {tab === 'completed' && completedCampaigns.map((c) => {

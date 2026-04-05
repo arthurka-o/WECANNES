@@ -5,7 +5,7 @@ import { Page } from '@/components/PageLayout';
 import type { Campaign, Goal } from '@/lib/db';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { useUserOperationReceipt } from '@worldcoin/minikit-react';
-import { Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogClose, Button, Chip, TopBar } from '@worldcoin/mini-apps-ui-kit-react';
 import { Settings } from '@worldcoin/mini-apps-ui-kit-react/icons/outline';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,8 @@ export default function BusinessPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'fund' | 'approve' | 'reject'; campaignId: number } | null>(null);
+  const [actionPending, setActionPending] = useState(false);
 
   useEffect(() => {
     fetch('/api/campaigns').then((r) => r.json()).then(setCampaigns);
@@ -78,7 +80,6 @@ export default function BusinessPage() {
   const handleFund = async (campaignId: number) => {
     const c = campaigns.find((c) => c.id === campaignId);
     if (!c || !businessName) return;
-    if (!confirm(`Sponsor this campaign for ${c.funding_required} EURC?`)) return;
 
     try {
       const amount = parseUnits(String(c.funding_required), 6);
@@ -119,7 +120,6 @@ export default function BusinessPage() {
   };
 
   const handleApprove = async (campaignId: number) => {
-    if (!confirm('Approve and release funds to the NGO?')) return;
 
     try {
       const result = await MiniKit.sendTransaction({
@@ -151,7 +151,6 @@ export default function BusinessPage() {
   };
 
   const handleReject = async (campaignId: number) => {
-    if (!confirm('Reject this submission? The NGO can resubmit.')) return;
 
     try {
       const result = await MiniKit.sendTransaction({
@@ -209,7 +208,7 @@ export default function BusinessPage() {
             <p className="text-sm"><span className="font-semibold">Find sponsor by:</span> {campaign.sponsorship_deadline}</p>
           </div>
 
-          <Button size="lg" variant="primary" className="w-full" onClick={() => handleFund(campaign.id)}>
+          <Button size="lg" variant="primary" className="w-full" onClick={() => setConfirmAction({ type: 'fund', campaignId: campaign.id })}>
             Sponsor — {campaign.funding_required} EURC
           </Button>
         </Page.Main>
@@ -274,10 +273,10 @@ export default function BusinessPage() {
           </div>
 
           <div className="flex gap-2">
-            <Button size="lg" variant="secondary" className="flex-1" onClick={() => handleReject(campaign.id)}>
+            <Button size="lg" variant="secondary" className="flex-1" onClick={() => setConfirmAction({ type: 'reject', campaignId: campaign.id })}>
               Reject
             </Button>
-            <Button size="lg" variant="primary" className="flex-1" onClick={() => handleApprove(campaign.id)}>
+            <Button size="lg" variant="primary" className="flex-1" onClick={() => setConfirmAction({ type: 'approve', campaignId: campaign.id })}>
               Approve & Release
             </Button>
           </div>
@@ -441,6 +440,45 @@ export default function BusinessPage() {
           </>
         )}
       </Page.Main>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.type === 'fund' && 'Sponsor campaign'}
+              {confirmAction?.type === 'approve' && 'Release funds'}
+              {confirmAction?.type === 'reject' && 'Reject submission'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.type === 'fund' && `Sponsor this campaign for ${campaigns.find(c => c.id === confirmAction.campaignId)?.funding_required} EURC?`}
+              {confirmAction?.type === 'approve' && 'Approve and release funds to the NGO?'}
+              {confirmAction?.type === 'reject' && 'Reject this submission? The NGO can resubmit.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose asChild>
+              <Button variant="secondary" size="lg" className="w-full">Cancel</Button>
+            </AlertDialogClose>
+            <Button
+              variant={confirmAction?.type === 'reject' ? 'secondary' : 'primary'}
+              size="lg"
+              className="w-full"
+              disabled={actionPending}
+              onClick={async () => {
+                if (!confirmAction) return;
+                setActionPending(true);
+                if (confirmAction.type === 'fund') await handleFund(confirmAction.campaignId);
+                if (confirmAction.type === 'approve') await handleApprove(confirmAction.campaignId);
+                if (confirmAction.type === 'reject') await handleReject(confirmAction.campaignId);
+                setActionPending(false);
+                setConfirmAction(null);
+              }}
+            >
+              {actionPending ? 'Processing...' : confirmAction?.type === 'fund' ? 'Sponsor' : confirmAction?.type === 'approve' ? 'Approve' : 'Reject'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
